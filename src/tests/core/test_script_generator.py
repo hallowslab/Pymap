@@ -36,8 +36,8 @@ def test_discards_invalid_inputs(test_input):
 def test_returns_parsed_line_1_user(test_input):
     # Test scenario 1: USER PASSWORD
     x = ScriptGenerator("127.0.0.1", "127.0.0.2", test_input, domain="test.com")
-    user1, passwd1 = test_input.split(" ")
-    final_str = x.process_line(test_input)
+    user1, passwd1 = test_input
+    final_str = x.process_line(f"{user1} {passwd1}")
     assert f"--user1 {user1}" in final_str
     assert f"--password1 '{passwd1}'" in final_str
     assert f"--user2 {user1}" in final_str
@@ -53,8 +53,8 @@ def test_returns_parsed_line_1_user(test_input):
 def test_returns_parsed_line_2_users(test_input):
     # Test scenario 1: USER1 PASSWORD1 USER2 PASSWORD2
     x = ScriptGenerator("127.0.0.1", "127.0.0.1", test_input, domain="test.com")
-    user1, passwd1, user2, passwd2 = test_input.split(" ")
-    final_str = x.process_line(test_input)
+    user1, passwd1, user2, passwd2 = test_input
+    final_str = x.process_line(f"{user1} {passwd1} {user2} {passwd2}")
     assert f"--user1 {user1}" in final_str
     assert f"--password1 '{passwd1}'" in final_str
     assert f"user2 {user2}" in final_str
@@ -92,7 +92,8 @@ def test_process_file_with_valid_file_path():
     file_path = "testcreds.tmp"
     with open(file_path, "w") as f:
         for line in RANDOM_VALID_CREDS_2:
-            f.write(line + "\n")
+            u1, p1, u2, p2 = line
+            f.write(f"{u1} {p1} {u2} {p2}" + "\n")
 
     x = ScriptGenerator(
         "127.0.0.1", "127.0.0.1", file_path=file_path, domain="test.com"

@@ -15,6 +15,6 @@ if __name__ == "__main__":
 
     logging.debug(options)
 
-    generator = ScriptGenerator(args.host1, args.host2, args.creds_file, **options)
+    generator = ScriptGenerator(args.host1, args.host2, file_path=args.creds_file, **options)
     generator.process_file()
     sys.exit(0)

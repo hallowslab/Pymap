@@ -87,6 +87,24 @@ Now if you need to add a user manually you can do so by using the following comm
 * Add admin functionality (WIP)
 * Configure logging for both Flask and Celery (WIP)
 
+#### TOFIX
+```
+logsComponent.js:47 
+ GET http://vps.edu:5000/api/v1/tasks/4b3dfa24-43d4-45c2-87da-e3701bb8e7d1 400 (BAD REQUEST)
+logsComponent.js:52 Res is 
+logsComponent.js:53 
+{error: 'AttributeError', message: "'TaskRevokedError' object has no attribute 'get'"}
+error
+: 
+"AttributeError"
+message
+: 
+"'TaskRevokedError' object has no attribute 'get'"
+[[Prototype]]
+: 
+Object
+```
+
 #### Notes
 
 * [Configure poetry with VSCode](https://stackoverflow.com/a/64434542) 

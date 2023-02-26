@@ -8,8 +8,9 @@ LOGDIR = "/var/log/pymap"
 
 class ScriptGenerator:
     DOMAIN_IDENTIFIER = re.compile(r".*@(?P<domain>[\w].[\w]).*")
-    USER_IDENTIFIER = re.compile(r"^[\w.]+(?P<mail_provider>@[\w.]+)*")
-    PASS_IDENTIFIER = re.compile(r".*[\s|,|.]+(?P<pword>.+)$")
+    USER_IDENTIFIER = re.compile(r"\w+@[a-zA-Z_]+?\.[a-zA-Z]{2,3}")
+    PASS_START = re.compile(r"\s+(?P<password>.*)\s+?\w+?@")
+    PASS_END = re.compile(r".*@\w+\.\w+\s+(?P<password>[\x20-\x7E]+)\s?$")
     # Finding a delimiter for the password can be difficult since passwords
     # can be made up of almost any character
     WHOLE_STRING_ID = re.compile(
@@ -118,6 +119,12 @@ class ScriptGenerator:
                     if self.extra_args:
                         new_line = f"{new_line} {self.extra_args}"
                     yield new_line
+
+
+    # def process_line(self, line:str) -> Optional[str]:
+    #     user_match = self.USER_IDENTIFIER.search(line)
+    #     print(user_match)
+        
 
     # Processes individual Lines returns None or a formatted string
     def process_line(self, line: str) -> Union[str, None]:
