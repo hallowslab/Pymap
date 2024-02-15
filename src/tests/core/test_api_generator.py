@@ -1,5 +1,8 @@
+from typing import List
 import pytest
 from core.pymap_core import ScriptGenerator
+
+# Just here for the dev log level
 
 from tests import (
     RANDOM_VALID_CREDS_3,
@@ -17,18 +20,18 @@ from tests import (
         ("This gets parsed by the second method, unfortunately returns bad content"),
     ],
 )
-def test_api_discards_invalid_inputs(test_input):
-    x = ScriptGenerator("127.0.0.1", "127.0.0.1", creds=test_input, domain="test.com")
-    scripts = x.process_string()
+def test_api_discards_invalid_inputs(test_input: List[str]) -> None:
+    x = ScriptGenerator("127.0.0.1", "127.0.0.1", domain="test.com")
+    scripts = x.process_strings(test_input)
     assert isinstance(scripts, list)
     assert len(scripts) == 0
 
 
 # USER PASSWORD
 @pytest.mark.parametrize("test_input", RANDOM_VALID_CREDS_3)
-def test_returns_parsed_line_1_user(test_input):
-    x = ScriptGenerator("127.0.0.1", "127.0.0.2", test_input, domain="test.com")
-    scripts = x.process_string()
+def test_returns_parsed_line_1_user(test_input: List[str]) -> None:
+    x = ScriptGenerator("127.0.0.1", "127.0.0.2", domain="test.com")
+    scripts = x.process_strings(test_input)
     for line in scripts:
         parts = line.split()
         host1 = parts[parts.index("--host1") + 1]
@@ -47,9 +50,9 @@ def test_returns_parsed_line_1_user(test_input):
 
 # USER1 PASSWORD1 USER2 PASSWORD2""
 @pytest.mark.parametrize("test_input", RANDOM_VALID_CREDS_4)
-def test_returns_parsed_line_2_users(test_input):
-    x = ScriptGenerator("127.0.0.1", "127.0.0.1", creds=test_input, domain="test.com")
-    scripts = x.process_string()
+def test_returns_parsed_line_2_users(test_input: List[str]) -> None:
+    x = ScriptGenerator("127.0.0.1", "127.0.0.1", domain="test.com")
+    scripts = x.process_strings(test_input)
     for line in scripts:
         parts = line.split()
         host1 = parts[parts.index("--host1") + 1]

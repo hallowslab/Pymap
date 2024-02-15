@@ -1,0 +1,45 @@
+<!-- navbar.html -->
+<nav class="navbar navbar-expand-lg fixed-top navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/">Pymap</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav flex-grow-1">
+        <li class="nav-item">
+          <a class="nav-link active" aria-current="page" href="{% url 'migrator:sync' %}">Sync</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'migrator:tasks' %}">Tasks</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/#">Options</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/admin">Administration</a>
+        </li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item dropdown dropstart">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-circle"></i>
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <form action="{% url 'migrator:user-account' %}">
+                <button class="dropdown-item" href="#">Account <i class="bi bi-gear"></i></button>
+              </form>
+            </li>
+            <li>
+              <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item" href="">Exit <i class="d-inline bi bi-escape"></i></button>
+              </form>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>

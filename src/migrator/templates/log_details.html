@@ -1,0 +1,112 @@
+{% extends 'structure/base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex flex-column align-items-center mb-3">
+        <h2 class="w-100 text-center mb-3">Task ID: {{ task_id }}</h2>
+        <h4 class="w-100 text-center">
+            Log file: 
+            <a href="{% url 'migrator:tasks-log-download' task_id=task_id log_file=log_file %}">{{ log_file }}</a>
+        </h3>
+    </div>
+    <div class="d-flex justify-content-evenly mb-3">
+        <input
+        type="number"
+        class="form-control w-25"
+        id="tail-timeout"
+        placeholder="Tail timeout"
+        />
+        <input
+        type="number"
+        class="form-control w-25"
+        id="tail-count"
+        placeholder="Tail count"
+        />
+        <button
+        class="btn btn-warning"
+        id="refresh-button"
+        onclick="refreshListener(this)"
+        >
+            Start
+        </button>
+        <button
+        class="btn btn-primary"
+        onclick="fetchData()"
+        >
+            Update
+        </button>
+    </div>
+    <div class="d-flex justify-content-evenly">
+        <textarea
+        id="log-content"
+        class="form-control"
+        rows="4"
+        style="width: 90%; margin-bottom: 1em; height: 50vh;"
+        disabled
+        >
+    </textarea>
+    </div>
+</div>
+
+<script>
+    let intervalId = null; // Variable to store the interval ID
+
+    const refreshListener = async (e)=>{
+        if (intervalId === null) {
+            // Start executing
+            await fetchData();
+            intervalId = setInterval(fetchData, 5000);
+            e.innerText = "Stop"
+            e.classList.add('btn-success')
+            e.classList.remove('btn-warning')
+        } else {
+            // Stop execution if already running
+            clearInterval(intervalId);
+            intervalId = null;
+            e.innerText = "Start"
+            e.classList.remove('btn-success')
+            e.classList.add('btn-warning')
+        }
+    }
+
+    const fetchData = async () => {
+        const textArea = document.getElementById('log-content');
+        const tailCountInput = document.getElementById('tail-count')
+        const tailTimeoutInput = document.getElementById('tail-timeout')
+        var tailCount = 100;
+        var tailTimeout = 5;
+        const APIURL = `/api/tasks/{{task_id}}/{{log_file}}?tcount=${tailCount}&ttimeout=${tailTimeout}`;
+
+        try {
+            const response = await fetch(APIURL);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const responseData = await response.json();
+
+            if (responseData.content) {
+                if (responseData.error) {
+                    console.error(`Error: ${responseData.error}`);
+                }
+                textArea.value = responseData.content;
+                textArea.scrollTop = textArea.scrollHeight;
+            } else if (responseData.error) {
+                alert("Error, check console")
+                console.error(`API Error: ${responseData.error}, ${responseData.data}`);
+            } else {
+                alert("Unknown API error");
+            }
+        } catch (error) {
+            console.error(`Fetch error: ${error.message}`);
+            // Handle other errors as needed
+        }
+    };
+
+    $(document).ready(async ()=>{
+        await fetchData();
+    })
+
+</script>
+{% endblock %}

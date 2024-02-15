@@ -1,43 +1,88 @@
-version: '0.0.1'
+version: '3'
+
 services:
-  kali:
-    entrypoint: ['bash']
-    tty: true
-    build: ./dockers/kali/Dockerfile
+  redis:
+    image: "docker.io/library/redis:latest"
     ports:
-     - "5902:5902"
-  mail1:
-    image: "roundcube/roundcubemail"
-    environment:
-      - ROUNDCUBEMAIL_DEFAULT_PORT=143
-      - ROUNDCUBEMAIL_DEFAULT_HOST=localhost
-      - ROUNDCUBEMAIL_SMTP_SERVER=localhost
-    ports:
-      - 80:8081
-      - 143:143
-  mail2:
-    image: "roundcube/roundcubemail"
-    environment:
-      - ROUNDCUBEMAIL_DEFAULT_PORT=144
-      - ROUNDCUBEMAIL_DEFAULT_HOST=localhost
-      - ROUNDCUBEMAIL_SMTP_SERVER=localhost
-    ports:
-      - 80:8082
-      - 144:144
-  ubuntu20:
-    entrypoint: ['bash']
-    tty: true
-    build:
-      context: ./
-      dockerfile: ./dockers/ubuntu20.04/Dockerfile
-    ports:
-      - "3000:3000"
-      - "5000:5000"
       - "6379:6379"
+    restart: always
+
+  aio:
+    build:
+      context: .
+      dockerfile: Dockerfiles/aio/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app
     environment:
-      - FLASK_ENV="development"
-      - NVM_DIR="/home/pymap"
-  alpine:
-    entrypoint: ['bash']
+      - DJANGO_ENV=production
+      - DJANGO_SETTINGS_MODULE=pymap.settings
+      - CELERY_BROKER_URL=redis://localhost:6379/0
+      - CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfiles/celery/Dockerfile
+    depends_on:
+      - redis
+    volumes:
+      - ./src:/app
+      - shared_logs:/var/log/pymap
+    environment:
+      - DJANGO_ENV=production
+      - DJANGO_SETTINGS_MODULE=pymap.settings
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+  django-app:
+    build:
+      context: .
+      dockerfile: Dockerfiles/django/Dockerfile
+    stdin_open: true
     tty: true
-    build: ./dockers/alpine/Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - celery-worker
+    volumes:
+      - ./src:/app
+      - shared_logs:/var/log/pymap
+    environment:
+      - DJANGO_ENV=production
+      - DJANGO_SETTINGS_MODULE=pymap.settings
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+  email-server:
+    build:
+      context: Dockerfiles/email-server
+      dockerfile: Dockerfile
+    networks:
+      - mail
+    ports:
+      - "2500:2500"
+      - "1430:1430"
+      - "4650:4650"
+      - "9930:9930"
+
+  rainloop:
+    build:
+      context: Dockerfiles/rainloop
+      dockerfile: Dockerfile
+    networks:
+      - mail
+    ports:
+      - "8080:8080"
+    depends_on:
+      - email-server
+
+
+networks:
+  mail:
+    driver: bridge
+
+volumes:
+  shared_logs:

@@ -1,0 +1,4 @@
+{
+    "pylint.cwd": "${workspaceFolder}/src/",
+    "mypy-type-checker.cwd": "${workspaceFolder}/src/",
+}

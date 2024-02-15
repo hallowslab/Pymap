@@ -1,0 +1,72 @@
+{% extends 'structure/base.html' %}
+
+{% block script %}
+    {% include 'structure/datatables.html' %}
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-3 pb-5">
+    <h2>{{ task_id }}</h2>
+    <table id="taskDetails" class="table">
+        <thead>
+            <tr>
+                <th>Logfile</th>
+                <th>Start time</th>
+                <th>End Time</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Dynamic data goes here -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    var taskDetails;
+    
+    // Datatable row onClick
+    $(document).on('click','#taskDetails tr',function(e){
+        var data = taskDetails.row(this).data();
+        if (data) {
+            var log_file = data['log_file'];
+            var task_id = "{{ task_id }}"
+            var travel = `/tasks/${task_id}/${log_file}`
+            window.location.href = travel;
+        }
+    });
+    
+    $(document).ready(function () {
+        // Function to initialize the DataTable with server-side processing
+        const initializeDataTable = () => {
+            taskDetails = $('#taskDetails').DataTable({
+                serverSide: true,
+                processing: true,
+                searching: true,
+                ordering: true,
+                pageLength: 15,
+                paging: true,
+                search: {
+                    return: true
+                },
+                order: [[1, 'asc']],
+                ajax: {
+                    url: '/api/tasks/'+'{{ task_id }}',
+                    type: 'GET',
+                },
+                columns: [
+                {data: 'log_file', width: '900px'},
+                {data: 'start_time', width: '250px'},
+                {data: 'end_time', width: '250px'},
+                {data: 'status', width: '200px'},
+                ]
+            });
+        };
+        
+        // Run the initializeDataTable function on document load
+        initializeDataTable();
+    });
+</script>
+
+{% endblock %}

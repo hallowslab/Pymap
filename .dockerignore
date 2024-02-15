@@ -1,7 +1,22 @@
-**/node_modules
-**/.venv
-**/venv
-**/build
-**/sync*.sh
-**/tes*.txt
-**/*.db
+# Ignore Python bytecode files
+__pycache__/
+
+# Ignore Python distribution / virtual environment directories
+venv/
+env/
+.venv/
+bin/
+lib/
+include/
+*.egg-info/
+
+# Ignore logs and other generated files
+*.log
+*.tmp
+*.pid
+
+# Ignore development and editor-specific files
+*.pyc
+*.pyo
+*.swp
+.DS_Store

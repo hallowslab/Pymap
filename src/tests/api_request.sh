@@ -1,2 +1,0 @@
-curl -X POST localhost:5000/api/v1/sync -H "Content-Type: application/json" -d @test_request.json
-curl -X POST localhost:5000/api/v1/sync -H "Content-Type: application/json" -d @test_heavy_request.json

@@ -1,0 +1,36 @@
+<!-- update_account.html -->
+
+{% extends 'structure/base.html' %}
+{% block title %}Update User Account{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Update Account Information</h2>
+    <hr>
+    <div class="d-flex">
+        <div class="card w-50 m-auto">
+            <div class="card-header">
+                <h2 class="card-title">{{username}}</h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">Email:</label>
+                        {{ form.email }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name:</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name:</label>
+                        {{ form.last_name }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

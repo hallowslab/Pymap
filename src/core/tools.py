@@ -1,16 +1,13 @@
 import logging
 import argparse
-import configparser
+import json
 
-
-def set_config(f_path="config.ini"):
-    config = configparser.ConfigParser()
-    config.read(f_path)
-    return config
+from argparse import Namespace
+from typing import Any
 
 
 # Try to parse log level, default to 20/INFO
-def set_logging(log_level):
+def set_logging(log_level: str) -> None:
     # On dry run DEBUG is always enabled
     numeric_level = getattr(logging, log_level.upper(), 20)
     logging.basicConfig(
@@ -24,7 +21,16 @@ def set_logging(log_level):
     )
 
 
-def setup_argparse():
+def load_config(f_path: str = "config.json") -> Any:
+    """
+    Loads configuration from a json dictionary
+    """
+    with open(f_path, "r") as config_file:
+        config = json.load(config_file)
+    return config
+
+
+def setup_argparse() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Processes a file, outputs a script for imapsync",
         prog="pymap",
@@ -63,6 +69,9 @@ def setup_argparse():
         type=str,
         default="INFO",
         help="Defines log level (INFO, WARNING, ERROR, DEBUG)",
+    )
+    parser.add_argument(
+        "-c", "--config", default=None, help="Path of the configuration file"
     )
     parser.add_argument(
         "-dry",

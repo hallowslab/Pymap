@@ -1,0 +1,33 @@
+{
+  "LOGDIR": "pymap_logs",
+  "HOSTS": [
+    ["^(VPS|SV|SERVER)([0-9][0-9]|[0-4][0-9]{2})$",".example.com"]
+  ],
+  "LOGGING": {
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+      "custom_formatter": {
+        "format": "%(asctime)s - %(name)s >>> %(levelname)s: %(message)s",
+        "datefmt": "%d/%m/%Y %I:%M:%S %p"
+      }
+    },
+    "handlers": {
+      "console": {
+        "class": "logging.StreamHandler",
+        "level": "DEBUG",
+        "formatter": "custom_formatter"
+      },
+      "file": {
+        "class": "logging.FileHandler",
+        "filename": "pymap_logs/pymap.log",
+        "level": "DEBUG",
+        "formatter": "custom_formatter"
+      }
+    },
+    "root": {
+      "handlers": ["console", "file"],
+      "level": "DEBUG"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+# main.cf
+
+myhostname = mail.example1.lan
+mydomain = example1.lan
+myorigin = $mydomain
+inet_interfaces = all
+# Disable IPv6 (optional)
+inet_protocols = ipv4
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+mynetworks_style = host
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+mailbox_size_limit = 0
+recipient_delimiter = +
+
+# Virtual mailbox settings
+virtual_mailbox_domains = example1.lan, example2.lan
+virtual_mailbox_base = /var/mail
+virtual_mailbox_maps = hash:/etc/postfix/virtual_mailbox_maps
+
+# SASL settings for authentication (optional)
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = smtpd
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+

@@ -1,64 +1,52 @@
 [tool.poetry]
 name = "pymap"
-version = "2.4.0"
+version = "2.0.0-alpha"
 description = ""
 authors = ["hallowslab <hallow.tech.lab@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
-Flask = ">=2.0.1"
-redis = "^4.1.4"
-gunicorn = "^20.1.0"
-Flask-SQLAlchemy = "^2.5.1"
-celery = {extras = ["eventlet"], version = "^5.2.7"}
-Flask-Cors = "^3.0.10"
-flask-praetorian = "^1.4.0"
-Flask-Migrate = "^4.0.0"
+python = "^3.10"
+django = "^5.0.1"
+djangorestframework = "^3.14.0"
+celery = {extras = ["redis"], version = "^5.3.6"}
+flower = "^2.0.1"
+django-celery-beat = {git = "https://github.com/celery/django-celery-beat.git"}
+taskipy = "^1.8.0"
+docutils = "^0.20.1"
+redis = {extras = ["hiredis"], version = "^5.0.1"}
 
-[tool.black]
-extend-exclude = "^/migrations"
-
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
 pytest = "^6.2.5"
-taskipy = "^1.8.0"
-mypy = "^0.910"
 autoflake = "^1.4"
 coverage = "^6.3.2"
-Flask-Testing = "^0.8.1"
-types-redis = "^4.3.21"
+django-debug-toolbar = "^4.2.0"
+mypy = ">=1.7.0"
+django-stubs = {extras = ["compatible-mypy"], version = "^4.2.7"}
+djangorestframework-stubs = {extras = ["compatible-mypy"], version = "^3.14.5"}
 
 [tool.taskipy.tasks]
-clientDev = "cd client && npm start"
-prod = "cd client && npm run build && cd .. && gunicorn -w 4 -b 0.0.0.0:5000 'server:create_flask_app()'"
-worker = "celery -A server.tasks worker -E --pool=eventlet --concurrency=100 -l INFO"
-workerDev = "celery -A server.tasks worker -E --pool=eventlet --concurrency=100 -l DEBUG"
-workerWin = "celery -A server.tasks worker -E --pool=solo -l DEBUG"
-apiDev = "flask --app manage --debug run -h 0.0.0.0 "
-### Database commands
-# Prod
-initDB = "flask --app manage db init"
-createDB = "flask --app manage create-db"
-addAdmin = "flask --app manage create-admin admin CHANGE_ME"
-# Upgrading
-upgradeDB = "flask --app manage db upgrade && flask --app manage --debug db upgrade"
-# Dev
-# migrate needs to be run before update in a dev environment
-migrateDB = "flask --app manage db migrate"
-createDevDB = "flask --app manage --debug create-db"
-addDevAdmin = "flask --app manage --debug create-admin admin CHANGE_ME"
-### Misc
-genLogs = "python scripts/generate_random_logs.py"
-buildDeps = "python scripts/build_client_dependencies_cache.py"
-### Formatting, tests & coverage
-format = "black . && autoflake -i -r  --remove-unused-variables --remove-all-unused-imports --exclude client,migrations . && mypy core server"
+serverDev = "DJANGO_ENV='development' task server"
+workerDev = "DJANGO_ENV='development' task worker"
+monitorDev = "DJANGO_ENV='development' task monitor"
+server = "python manage.py runserver 0.0.0.0:8000"
+worker = "celery -A pymap.celery worker"
+monitor = "celery -A pymap.celery flower --basic-auth='admin:admin,dev:localhost' --address='localhost'"
+### Database tasks
+upgradeDev = "DJANGO_ENV='development' task upgrade"
+upgrade = "task prep && task migr"
+prep = "python manage.py makemigrations"
+migr = "python manage.py migrate"
+### Formatting, tests
+check = "DJANGO_ENV='development' task format"
+format = "task black && task flake && task mypy"
+black = "black . "
+flake = "autoflake -i -r ."
+mypy = "mypy --strict ."
 testCore = "pytest tests/core"
-testServer = "pytest tests/server"
-testBackend = "pytest tests/"
-testClient = "cd client && npm test"
+### Coverage
 coverage = "coverage run -m pytest && coverage report"
 
-
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

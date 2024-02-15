@@ -1,0 +1,52 @@
+{% extends 'structure/base.html' %}
+
+{% block content %}
+<div class="container">
+    {% if redirecting %}
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    {% endif %}
+
+    
+    <form method="post" action="{% url 'migrator:sync' %}">
+        {% csrf_token %}
+        <div class="row mb-5 fs-3">
+            <div class="col-md-6 text-center">
+                <label for="{{ form.source.id_for_label }}" class="form-label">Source:</label>
+                {{form.source}}
+            </div>
+            <div class="col-md-6 text-center">
+                <label for="{{ form.destination.id_for_label }}" class="form-label">Destination:</label>
+                {{form.destination}}
+            </div>
+        </div>
+        
+        <div class="row mb-5">
+            <div class="col-12 text-center fs-3">
+                <label for="{{ form.input_text.id_for_label }}" class="form-label">Input</label>
+                {{form.input_text}}
+            </div>
+        </div>
+
+        <div class="row mb-5 fs-5">
+            <div class="col-md-6">
+                <label for="{{ form.additional_arguments.id_for_label }}" class="form-label d-inline-flex">Additional Arguments:</label>
+                {{form.additional_arguments}}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.dry_run.id_for_label }}" class="form-check-label">Dry Run</label>
+                {{form.dry_run}}
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-12 text-center">
+                <button type="submit" class="btn btn-primary" value="submit">Start Sync</button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
