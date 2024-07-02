@@ -38,10 +38,8 @@ def check_failed_is_only_spam(content: str) -> bool:
     lines: List[str] = [x for x in content.split("\n") if len(x) > 1]
     for line in lines:
         if re.match(SPAM_ERROR, line):
-            continue
-        else:
-            return False
-    return True
+            return True
+    return False
 
 
 def sub_check_output(command: str, filename: str, timeout: int = 5) -> str:

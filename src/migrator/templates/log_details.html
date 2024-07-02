@@ -10,12 +10,12 @@
         </h3>
     </div>
     <div class="d-flex justify-content-evenly mb-3">
-        <input type="number" class="form-control w-25" id="tail-timeout" placeholder="Tail timeout"/>
-        <input type="number" class="form-control w-25" id="tail-count" placeholder="Tail count"/>
-        <button class="btn btn-warning" id="refresh-button" onclick="refreshListener(this)">
-            Start
+        <input type="number" class="form-control w-25" id="tail-timeout" placeholder="Tail timeout" onchange="updateTailParams(this)"/>
+        <input type="number" class="form-control w-25" id="tail-count" placeholder="Tail count" onchange="updateTailParams(this)"/>
+        <button class="btn btn-secondary" id="refresh-button" onclick="refreshListener(this)">
+            Follow
         </button>
-        <button class="btn btn-primary" onclick="fetchData()">
+        <button class="btn btn-link" onclick="fetchData()">
             Update
         </button>
     </div>
@@ -29,29 +29,35 @@
     let intervalId = null; // Variable to store the interval ID
     let tCount = 100;
     let tTimeout = 5;
+
+    const updateTailParams = (e) => {
+        if(e.id == "tail-timeout") {
+            tTimeout = e.value
+        } else if (e.id == "tail-count") {
+            tCount = e.value
+        }
+    }
     
     const refreshListener = async (e)=>{
         if (intervalId === null) {
             // Start executing
             await fetchData();
             intervalId = setInterval(fetchData, 5000);
-            e.innerText = "Stop"
-            e.classList.remove('btn-success')
-            e.classList.add('btn-warning')
+            e.innerText = "Stop";
+            e.classList.remove('btn-secondary');
+            e.classList.add('btn-success');
         } else {
             // Stop execution if already running
             clearInterval(intervalId);
             intervalId = null;
-            e.innerText = "Follow"
-            e.classList.add('btn-success')
-            e.classList.remove('btn-warning')
+            e.innerText = "Follow";
+            e.classList.add('btn-secondary');
+            e.classList.remove('btn-success');
         }
     }
     
     const fetchData = async () => {
         const textArea = document.getElementById('log-content');
-        const tailCountInput = document.getElementById('tail-count')
-        const tailTimeoutInput = document.getElementById('tail-timeout')
         const APIURL = `/api/tasks/{{task_id}}/{{filename}}?tcount=${tCount}&ttimeout=${tTimeout}`;
         
         try {
@@ -83,6 +89,8 @@
     
     $(document).ready(async ()=>{
         await fetchData();
+        document.getElementById('tail-timeout').value = tTimeout;
+        document.getElementById('tail-count').value = tCount;
     })
     
 </script>
