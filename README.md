@@ -31,6 +31,7 @@ This setup focus on running the app natively on a linux environment, the app sho
 - Clone the project
 `git clone https://github.com/hallowslab/Pymap.git`
 - Export the required environment variables in your current shell or shell config file, more info in [Additional Info - Environment Variables](#environment-variables)
+- You will need to create a .secret file in the src directory as explained in [.secret file](#secret-file)
 - Create a config file in `pymap/src/config.json`, You can copy it from the existing templates config*-template.json and modify the settings accordingly, more info in [Addtional Info - Config File](#config-file)
 - Create the LOG_DIRECTORY that's defined in your config file or the environment variable and set the ownership to the user that runs the app
 - Create the STATIC_ROOT if necessary and make sure nginx processes can read it, if you defined the static root to /var/html/static, then ensure the user has write access otherwise just define the variable to some other directory, copy the files over and verify permissions.
@@ -59,26 +60,31 @@ To remove containers/volumes and images:
 * `docker rm -vf $(docker images -aq)` - Removes all containers and volumes
 * `docker rmi -f $(docker images -aq)` - Removes all images (*Remove containers beforehand*)
 
+*If you used a profile you might need to specify it again to remove containers associated with them*
+* `docker compose --profile flower down --rmi all`
+
 # Additional Info
 
 ## Environment Variables:
 The environment variable that can be defined will take precedence when loading the settings for the application, so if you defined LOGDIR in both config.json and .env file the one defined in .env will be used
 
-* POSTGRES_USER=USER # The user that is created in the postgres image and defined pgsecret and pgconf files, for barebones you need to create the specific files and define the postgres variables there
-* POSTGRES_PASSWORD=PASS # Password for the user mentioned above
-* POSTGRES_DB=pymap # Database for the migrator app
-* POSTGRES_HOST=postgres # postgres instance hostname as defined in compose.yml
-* POSTGRES_PORT=5432 # The port for the postgres instance
+### Required
 * DJANGO_ENV=production # This defines if the app is running in production or development mode, development mode is unsafe to run in an environment exposed to the web
 * DJANGO_SETTINGS_MODULE=pymap.settings # Defines the app settings modules to be used, should not be changed, the configs are set in the json file
 * STATIC_ROOT=/var/www/static # The path to collect the static files from the app (javascript, css and html), needs to be writable by the app user
 * CELERY_BROKER_URL=redis://localhost:6379/0 # The URL of the redis instance that will be used for the background tasks handling <b>*can be set in config/optional</b>
 * CELERY_RESULT_BACKEND=redis://localhost:6379/0 # The URL that will save the temporary results of the task <b>*can be set in config/optional</b>
+
+### Optional AND|OR Docker
+* SECRET_KEY="" # This should not be stored as an environment variable and instead be defined in a .secret file in the /src directory, it can be defined in .env with docker since it does not register it in the container's environment, it creates the .secret file
 * PYMAP_LOGDIR=/var/log/pymap # Directory for the application's log files <b>*can be set in config/optional</b>
-* SECRET_KEY="" # This should not be stored as an environment variable and instead be defined in a .secret file in the /src directory
+* POSTGRES_USER=USER # The user that is created in the postgres image and defined pgsecret and pgconf files, for barebones you need to create the specific files and define the postgres variables there
+* POSTGRES_PASSWORD=PASS # Password for the user mentioned above
+* POSTGRES_DB=pymap # Database for the migrator app
+* POSTGRES_HOST=postgres # postgres instance hostname as defined in compose.yml
+* POSTGRES_PORT=5432 # The port for the postgres instance
 * GROUPNAME=pymap # Groupname for the shared directories in the containers
 * GID=1001 # Group id for the shared directories in the containers
-
 * WORKER_REPLICAS=2 # Optional (defaults to 1), how many instances of celery-worker should be deployed
 * FLOWER_ADMIN="USER" # Optional (only used in flower profile), Admin user for flower management interface.
 * FLOWER_PASSWORD="PASS" # Optional (only used in flower profile), Admin password for flower management interface.
@@ -143,7 +149,7 @@ There are only a few directives that you should be aware of:
 
 ## .secret file
 
-This file is only used to store the SECRET_KEY, the file should contain in a single line with no spaces a random generated piece of text around 50 characters long, I would reccomend using a password generator to create a complex enough secret. There are builtin tools to generate random cryptographically secure keys you can read more in [Advanced Usage - Generating Secrets](#generating-secrets)
+This file is only used to store the SECRET_KEY, the file should contain in a single line with no spaces a random generated piece of text around 50 characters long, I would recommend using a password generator to create a complex enough secret. There are builtin tools to generate random cryptographically secure keys you can read more in [Advanced Usage - Generating Secrets](#generating-secrets)
 
 # Advanced Usage
 
@@ -156,18 +162,12 @@ Run the following command in the src directory:
 
 This will output a random string of characters, copy the output (be carefull to not copy any spaces or new lines at the end or beggining or end of the key) and paste it in a file in src/.secret (You will need to create the file)
 
-# Dockers (docker or podman with compose)
-### AIO
-
-* The AIO(All In One) image runs all services in a single container, altought this is not ideal for scaling it might be easier to manage
-* It's using supervisor to run multiple processes, the system processes like postgresql, nginx, and redis run under their own users and the app runs under the `pymap` user
-* Nginx handles the traffic incoming to Gunicorn, which then uses the Uvicorn class worker to be able to process more requests(ASGI)
-
 #### Notes
 
-You can specify multiple files as cli params: docker compose --env-file .env --env-file dev.env build aio
+You can specify multiple .env files like: docker compose --env-file .env --env-file dev.env build aio
+You can specify multiple compose files like: docker compose --env-file .env -f docker-compose.yml -f docker-compose.optional.yml
 
-
+*This actually merges them so it can override defaults*
 
 # DEV
 ### Notes:
@@ -212,12 +212,9 @@ revoke: Revoking tasks
 pool support: all, terminate only supported by prefork and eventlet
 
 #### TODO:
-* Make a logo
 * Add failsafe to pass --gmail or --office when it detects one of their hosts and the parameter missing
 * If running the CLI remove the pipe to /dev/null
 * MEMOIZE and cache some common operations
-* Add queue/requeue functionality, queue should also support starting a task after another is marked as finished
-  * Encrypt celery task results (or just stop using them for now) *Required*
 
 
 ### Bugs/Issues

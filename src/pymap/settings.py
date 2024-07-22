@@ -71,6 +71,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.cache.UpdateCacheMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,6 +79,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "migrator.middleware.require_auth.staff_only",
+    "django.middleware.cache.FetchFromCacheMiddleware",
 ] + (["debug_toolbar.middleware.DebugToolbarMiddleware"] if DEBUG else [])
 
 ROOT_URLCONF = "pymap.urls"
@@ -110,6 +112,16 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+# Cache
+# https://docs.djangoproject.com/en/5.0/topics/cache/
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://redis:6379",
+    }
+}
+CACHE_MIDDLEWARE_SECONDS = 3600
 
 
 # Password validation
@@ -147,7 +159,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = "/home/pymap/app/static"
+STATIC_ROOT = os.environ.get("STATIC_ROOT", Path(BASE_DIR, "static"))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -198,7 +210,7 @@ def load_settings_file() -> None:
     """
     Load custom settings from a JSON file.
     """
-    global PYMAP_SETTINGS, LOGGING, ALLOWED_HOSTS
+    global PYMAP_SETTINGS, LOGGING, ALLOWED_HOSTS, CACHES, CACHE_MIDDLEWARE_SECONDS
     config_file = "config.json" if DJANGO_ENV == "production" else "config.dev.json"
     custom_settings = {}
     try:
@@ -214,17 +226,24 @@ def load_settings_file() -> None:
 
     print(f"Loaded custom settings from: {Path(BASE_DIR, config_file)}")
 
-    log_config = custom_settings.get("LOGGING", {})
 
     # Override the LOGGING config with the user supplied if it exists
+    log_config = custom_settings.get("LOGGING", {})
     if isinstance(log_config, dict) and len(log_config) > 0:
         LOGGING.update(log_config)
 
-    databases_config = custom_settings.get("DATABASES", {})
-
     # Override the DATABASES config with the user supplied if it exists
+    databases_config = custom_settings.get("DATABASES", {})
     if isinstance(databases_config, dict) and len(databases_config) > 0:
         DATABASES.update(databases_config)
+    
+    # Override the CACHES config with the user supplied if it exists
+    caches_config = custom_settings.get("CACHES", {})
+    caches_seconds = custom_settings.get("CACHE_MIDDLEWARE_SECONDS", 3600)
+    if isinstance(caches_config, dict) and len(caches_config) > 0:
+        CACHES.update(caches_config)
+    if isinstance(caches_seconds, int):
+        CACHE_MIDDLEWARE_SECONDS = caches_seconds
 
     new_hosts = custom_settings.get("ALLOWED_HOSTS", [])
 
@@ -232,13 +251,13 @@ def load_settings_file() -> None:
         ALLOWED_HOSTS = new_hosts
 
     # Store custom settings under a specific key in PYMAP_SETTINGS
-    # I don't think anything besides the app should access the database settings
-    # so they are excluded for now, we also exclude secret key and other useless data
+    # I don't think anything besides django should access the database settings
+    # we only include settings the app should access
     PYMAP_SETTINGS.update(
         {
             k: v
             for k, v in custom_settings.items()
-            if k not in ["DATABASES", "SECRET", "SECRET_KEY", "ALLOWED_HOSTS"]
+            if k in ["PYMAP_LOGDIR", "HOSTS"]
         }
     )
 
@@ -341,7 +360,7 @@ def verify_secret_key() -> None:
             "You need to provide SECRET_KEY from either the config.json file or a .secret file in the app directory"
         )
         sys.exit(1)
-    elif SECRET_KEY is None and DJANGO_ENV != "production":
+    elif SECRET_KEY is None:
         SECRET_KEY = get_random_secret_key()
         print(f"Generated new secret key {SECRET_KEY}")
 

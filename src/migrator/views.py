@@ -10,7 +10,7 @@ from django.shortcuts import redirect, render
 from django.conf import settings
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
-from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, HttpRequest
+from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, HttpRequest, HttpResponseServerError
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q
@@ -193,6 +193,55 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
 
     return render(request, "sync.html", {"form": form})
 
+
+@login_required
+def retry_task(request:HttpRequest, task_id:str)-> (HttpResponse|HttpResponseRedirect):
+    assert isinstance(request.user, User)
+    user = request.user
+    source = None
+    destination = None
+    try:
+        db_result = CeleryTask.objects.get(task_id=task_id)
+        source = db_result.source
+        destination = db_result.destination
+    except CeleryTask.DoesNotExist:
+        logger.info(f"Missing database result for {task_id}")
+        pass
+    try:
+        meta=celery_app.backend.get_task_meta(task_id)
+        app_task = celery_app.tasks[meta['name']]
+        content = meta['args']
+        task = app_task.apply_async((content,), countdown=5)
+        logger.info(
+            f"Starting background task with ID: {task.id} from User: {user.username}"
+        )
+        logger.debug(meta)
+        return HttpResponseServerError("Not implemented")
+        source = meta[""]
+        destination = meta[""]
+        # Don't forget to save the task id and respective inputs to the database
+        root_log_directory: str = settings.PYMAP_LOGDIR
+        log_directory = Path(root_log_directory, task.id)
+        if not log_directory.exists():
+            log_directory.mkdir()
+        domains = ", ".join(db_result.domains)
+        ctask = CeleryTask(
+            task_id=task.id,
+            source=source,
+            destination=destination,
+            log_path=str(log_directory),
+            n_accounts=len(content),
+            domains=domains,
+            owner=user,
+        )
+        #ctask.save()
+
+        target_url = reverse("migrator:tasks-details", args=(task.id,))
+        logger.debug("Target redirect: %s", target_url)
+        return redirect(target_url, permanent=False)
+    except Exception as e:
+        logger.critical("Unhandled exception: %s", str(e), exc_info=True)
+        return HttpResponseServerError("Internal error")
 
 @login_required
 def download_log(request: HttpRequest, task_id: str, filename: str) -> HttpResponse:

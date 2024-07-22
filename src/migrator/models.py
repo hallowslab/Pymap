@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 #     def __str__(self):
 #         return f"Global Task Statistics"
 
+class UserPreferences(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    dark_mode_enabled = models.BooleanField(default=False)
+
+    def __str__(self) -> str:
+        return f"{self.user.username}'s Preferences"
+
 
 class CeleryTask(models.Model):
     """
