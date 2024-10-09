@@ -1,6 +1,7 @@
 {
-  "PYMAP_LOGDIR": "pymap_logs",
+  "PYMAP_LOGDIR": "/var/log/pymap",
   "ALLOWED_HOSTS": ["127.0.0.1", "localhost"],
+  "CSRF_TRUSTED_ORIGINS": ["https://127.0.0.1", "https://localhost","https://pymap.lan"],
   "HOSTS": [
     ["^(VPS|SV|SERVER)([0-9][0-9]|[0-4][0-9]{2})$",".example.com"]
   ],
@@ -9,7 +10,7 @@
     "disable_existing_loggers": false,
     "formatters": {
       "custom_formatter": {
-        "format": "%(asctime)s - %(name)s >>> %(levelname)s: %(message)s",
+        "format": "%(asctime)s - %(levelname)s >>> %(name)s: %(message)s",
         "datefmt": "%d/%m/%Y %I:%M:%S %p"
       }
     },
@@ -21,7 +22,7 @@
       },
       "file": {
         "class": "logging.FileHandler",
-        "filename": "pymap_logs/pymap.log",
+        "filename": "/var/log/pymap/pymap-dev.log",
         "level": "DEBUG",
         "formatter": "custom_formatter"
       }

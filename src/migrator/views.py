@@ -1,16 +1,26 @@
+# mypy: disable-error-code="unused-ignore"
 # Create your views here.
 import logging
 import re
+import ast
 from subprocess import PIPE, Popen, TimeoutExpired
-from typing import List, Optional
+from typing import List, Optional, Any
 from os import listdir
 from os.path import join
 from pathlib import Path
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.conf import settings
 from django.urls import reverse
 from django.utils.functional import SimpleLazyObject
-from django.http import HttpResponse, JsonResponse, HttpResponseRedirect, HttpRequest
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+from django.http import (
+    HttpResponse,
+    JsonResponse,
+    HttpResponseRedirect,
+    HttpRequest,
+    HttpResponseServerError,
+)
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q
@@ -22,9 +32,9 @@ from rest_framework.response import Response as APIResponse
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListCreateAPIView
 
-from .models import CeleryTask
+from .models import CeleryTask, UserPreferences
 from .serializers import CeleryTaskSerializer, TaskIdListSerializer
-from .forms import SyncForm, CustomUserChangeForm
+from .forms import SyncForm, CustomUserChangeForm, PreferencesForm
 from .tasks import call_system
 from pymap import celery_app
 from .utilites.helpers import get_logs_status
@@ -59,7 +69,8 @@ def index(request: HttpRequest) -> HttpResponse:
 @login_required
 def user_account(request: HttpRequest) -> HttpResponse:
     user = request.user
-    return render(request, "account.html", {"user": user})
+    preferences, _ = UserPreferences.objects.get_or_create(user=user)
+    return render(request, "account.html", {"user": user, "preferences": preferences})
 
 
 @login_required
@@ -81,6 +92,27 @@ def update_account(
 
 
 @login_required
+def update_preferences(
+    request: HttpRequest,
+) -> (HttpResponse | HttpResponseRedirect):
+    assert isinstance(request.user, User)  # AbstractBaseUser has no .username
+    user_preferences, _ = UserPreferences.objects.get_or_create(user=request.user)
+    if request.method == "POST":
+        form = PreferencesForm(request.POST, instance=user_preferences)
+        if form.is_valid():
+            form.save()
+            logger.debug(f"Updated user preferences for {request.user.username}")
+            return redirect(
+                "migrator:user-account", permanent=False
+            )  # Redirect to user's account page after successful update
+        else:
+            logger.debug(f"Update preferences form is not valid: {form.errors}")
+    else:
+        form = PreferencesForm(instance=user_preferences)
+    return render(request, "update_preferences.html", {"form": form})
+
+
+@login_required
 def tasks(request: HttpRequest) -> HttpResponse:
     """
     Renders task list template
@@ -89,11 +121,22 @@ def tasks(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@never_cache
 def task_details(request: HttpRequest, task_id: str) -> HttpResponse:
     """
     Renders task list details from the provided task_id
     """
-    return render(request, "task_details.html", {"task_id": task_id})
+    task = get_object_or_404(CeleryTask, task_id=task_id)
+    return render(
+        request,
+        "task_details.html",
+        {
+            "task_id": task_id,
+            "task_finished": task.finished,
+            "source": task.source,
+            "destination": task.destination,
+        },
+    )
 
 
 @login_required
@@ -134,6 +177,8 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
             dry_run: bool = form.cleaned_data["dry_run"]
             config = settings.PYMAP_SETTINGS
             user = request.user
+            user_preferences, _ = UserPreferences.objects.get_or_create(user=user)
+            additional_known_hosts = user_preferences.host_patterns
             logger.info(
                 f"USER: {user.username} requested a sync for {source} -> {destination}"
             )
@@ -155,6 +200,7 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
                 config=config,
                 dry_run=dry_run,
                 pymap_logdir=settings.PYMAP_LOGDIR,
+                additional_known_hosts=additional_known_hosts,
             )
             content = gen.process_strings(input_text)
 
@@ -163,7 +209,7 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
             #     "Received the following output from generator:\n %s", content
             # )
 
-            task = call_system.apply_async((content,), countdown=5)
+            task = call_system.apply_async((content,), countdown=5)  # type: ignore
             logger.info(
                 f"Starting background task with ID: {task.id} from User: {user.username}"
             )
@@ -192,6 +238,73 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
         form = SyncForm()
 
     return render(request, "sync.html", {"form": form})
+
+
+@login_required
+def retry_task(
+    request: HttpRequest, task_id: str
+) -> (HttpResponse | HttpResponseRedirect):
+    # This is to avoid -> Caution: A complex expression can overflow the C stack and cause a crash.
+    MAX_LENGTH = 20000
+
+    def validate_and_evaluate(input_str: str, max_length=MAX_LENGTH) -> Any:
+        if len(input_str) > max_length:
+            raise ValueError(
+                f"Input string exceeds the maximum length of {max_length} characters."
+            )
+        return ast.literal_eval(input_str)
+
+    assert isinstance(request.user, User)
+    user = request.user
+    source = None
+    destination = None
+    try:
+        db_result = CeleryTask.objects.get(task_id=task_id)
+        finished = db_result.finished
+        if not finished:
+            raise ValueError("Task has not finished yet")
+        source = db_result.source
+        destination = db_result.destination
+        meta = celery_app.backend.get_task_meta(task_id)
+        content_str = meta["args"]
+        # Convert the string to a Python tuple containing a list
+        content_tuple = validate_and_evaluate(content_str)
+        # Extract the list from the tuple
+        cmd_list = content_tuple[0]
+        logger.info(
+            f"USER: {user.username} requested a re-sync for {source} -> {destination}"
+        )
+        task = call_system.apply_async((cmd_list,), countdown=5)  # type: ignore
+        logger.info(
+            f"Restarting task {task_id} in background with new ID: {task.id} from User: {user.username}"
+        )
+        # Don't forget to save the task id and respective inputs to the database
+        root_log_directory: str = settings.PYMAP_LOGDIR
+        log_directory = Path(root_log_directory, task.id)
+        if not log_directory.exists():
+            log_directory.mkdir()
+        domains = db_result.domains if db_result.domains is not None else ""
+        ctask = CeleryTask(
+            task_id=task.id,
+            source=source,
+            destination=destination,
+            log_path=str(log_directory),
+            n_accounts=len(cmd_list),
+            domains=domains,
+            owner=user,
+        )
+        ctask.save()
+
+        target_url = reverse("migrator:tasks-details", args=(task.id,))
+        logger.debug("Target redirect: %s", target_url)
+        return redirect(target_url, permanent=False)
+    except CeleryTask.DoesNotExist:
+        return HttpResponseServerError(
+            "This task no longer has results on the database"
+        )
+    except Exception as e:
+        logger.critical("Unhandled exception: %s", str(e), exc_info=True)
+        return HttpResponseServerError("Internal error")
 
 
 @login_required
@@ -295,9 +408,7 @@ class CeleryTaskDetails(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(
-        self, request: APIRequest, task_id: str, format: Optional[str] = None
-    ) -> JsonResponse:
+    def get(self, request: APIRequest, task_id: str) -> JsonResponse:
         log_directory: Optional[str] = settings.PYMAP_LOGDIR
         all_logs = []
 
@@ -373,18 +484,16 @@ class CeleryTaskLogDetails(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(never_cache, name="dispatch")
     def get(
         self,
         request: APIRequest,
         task_id: str,
         log_file: str,
-        format: Optional[str] = None,
     ) -> JsonResponse:
-        logger.debug(f"Got request for task {task_id} logs")
         log_directory: str = settings.PYMAP_LOGDIR
         tail_timeout: int = int(request.GET.get("ttimeout", 5))
         tail_count: int = int(request.GET.get("tcount", 100))
-        logger.debug(f"Full request GET parameters: {request.GET}")
         # Tail the last X lines from the log file and return it
         f_path = Path(log_directory, task_id, log_file)
         try:
@@ -392,9 +501,6 @@ class CeleryTaskLogDetails(APIView):
                 return JsonResponse(
                     {"error": f"DJANGO:File {str(f_path)} was not found"}, status=404
                 )
-            logger.debug(
-                f"Tail timeout is: {tail_timeout}\nTail count is: {tail_count}"
-            )
 
             p1 = Popen(
                 ["tail", "-n", str(tail_count), str(f_path)],
@@ -428,7 +534,7 @@ class ArchiveTask(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request: APIRequest, format: Optional[str] = None) -> JsonResponse:
+    def post(self, request: APIRequest) -> JsonResponse:
         # Required User so we can validate the lookup on owned tasks
         # Incompatible type for lookup 'owner': AnonymousUser
         assert isinstance(request.user, SimpleLazyObject)
@@ -448,12 +554,12 @@ class ArchiveTask(APIView):
                 if user.is_staff or task.owner == user:
                     task.archived = True
                     task.save()
-                    logger.debug(
+                    logger.info(
                         f"User {user.username} archived task with ID {task.task_id}"
                     )
                     changes[task.task_id] = "OK"
                 else:
-                    logger.debug(
+                    logger.info(
                         f"User {user.username} does not own task with ID {task.task_id}"
                     )
                     changes[task.task_id] = f"User {user.username} does not own task"
@@ -475,7 +581,7 @@ class CancelTask(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def post(self, request: APIRequest, format: Optional[str] = None) -> JsonResponse:
+    def post(self, request: APIRequest) -> JsonResponse:
         # Required User so we can validate the lookup on owned tasks
         # Incompatible type for lookup 'owner': AnonymousUser
         assert isinstance(request.user, SimpleLazyObject)
@@ -493,13 +599,11 @@ class CancelTask(APIView):
             for task in tasks:
                 # Perform actions based on ownership
                 if user.is_staff or user == task.owner:
-                    celery_app.control.revoke(task.task_id, terminate=True)
-                    logger.debug(
-                        f"User {user.username} cancelled task with ID {task.task_id}"
-                    )
+                    task.terminated = True
+                    task.save()
                     changes[task.task_id] = "OK"
                 else:
-                    logger.debug(
+                    logger.info(
                         f"User {user.username} does not own task with ID {task.task_id}"
                     )
                     changes[
@@ -521,7 +625,7 @@ class DeleteTask(APIView):
 
     permission_classes = [IsAdminUser]
 
-    def post(self, request: APIRequest, format: Optional[str] = None) -> JsonResponse:
+    def post(self, request: APIRequest) -> JsonResponse:
         # Required User so we can validate the lookup on owned tasks
         # Incompatible type for lookup 'owner': AnonymousUser
         assert isinstance(request.user, SimpleLazyObject)
@@ -544,8 +648,7 @@ class DeleteTask(APIView):
             for task in tasks:
                 # Preserve the ID before deletion
                 task_id = task.task_id
-                msg = f"User {user.username} deleted task with ID {task_id}"
-                logger.debug(msg)
+                logger.info(f"User {user.username} deleted task with ID {task_id}")
                 task.delete()
                 changes[task_id] = "OK"
             return JsonResponse(

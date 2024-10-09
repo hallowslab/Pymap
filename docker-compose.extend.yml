@@ -1,0 +1,25 @@
+services:
+  celery-worker:
+    environment:
+      - DJANGO_ENV=development
+    volumes:
+      - ./src:/home/celery/app
+      - shared_logs:$PYMAP_LOGDIR
+    deploy:
+      mode: global
+    # Overrides default command so things don't shut down after the process ends.
+    command: /bin/sh -c "while sleep 1000; do :; done"
+
+  pymap:
+    ports:
+      - 9000:9000
+    environment:
+      - DJANGO_ENV=development
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+    # Overrides default command so things don't shut down after the process ends.
+    command: /bin/sh -c "while sleep 1000; do :; done"
+    volumes:
+      - ./src:/home/pymap/app  # Mount the src directory into the container
+      - shared_logs:$PYMAP_LOGDIR
+      - static_root:$STATIC_ROOT

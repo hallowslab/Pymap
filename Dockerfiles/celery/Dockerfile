@@ -1,4 +1,4 @@
-FROM debian:bookworm as debian-builder
+FROM debian:bookworm AS debian-builder
 
 # Install system and perl dependencies
 RUN apt-get update && \
@@ -52,7 +52,6 @@ ARG POSTGRES_DB \
     CELERY_BROKER_URL \
     CELERY_RESULT_BACKEND \
     PYMAP_LOGDIR \
-    SECRET_KEY \
     GROUPNAME \
     GID
 
@@ -68,7 +67,7 @@ RUN addgroup --gid $GID $GROUPNAME && \
 
 # Create the log directory
 RUN mkdir -p $PYMAP_LOGDIR
-
+RUN touch "$PYMAP_LOGDIR/pymap-dev.log" "$PYMAP_LOGDIR/pymap.log"
 RUN chown -R celery:$GROUPNAME $PYMAP_LOGDIR && chmod -R g+rw $PYMAP_LOGDIR
 
 
@@ -100,9 +99,10 @@ EOF
 RUN echo "$POSTGRES_HOST:$POSTGRES_PORT:$POSTGRES_DB:$POSTGRES_USER:$POSTGRES_PASSWORD" > ./.pgpass
 RUN chmod 600 ./.pgpass
 
-# Create .secret file for SECRET_KEY
-RUN echo "$SECRET_KEY" > ./.secret
-RUN chmod 600 ./.secret
+# The secret file should be mounted at runtime
+# create it and set permissions to avoid issues reading
+RUN touch .secret
+RUN chmod 600 .secret
 
 # Copy the project files
 COPY ./src/pyproject.toml ./
@@ -114,6 +114,10 @@ RUN poetry install $(if [ "$DJANGO_ENV" = 'production' ]; then echo '--only main
 
 # Copy the source code
 COPY ./src/ ./
+
+USER root
+RUN chown -R celery:pymap /home/celery/app/
+USER celery
 
 # celery -A pymap.celery worker -E --pool=gevent --statedb=celery/working.state"
 CMD ["sh", "-c", "sleep 5 && $(poetry env info --path)/bin/celery -A pymap.celery worker -l INFO --concurrency=500 --pool=gevent"]

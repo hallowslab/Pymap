@@ -26,6 +26,7 @@ class ScriptGenerator:
         **kwargs: Any,
     ) -> None:
         self.config = kwargs.get("config", {})
+        self.additional_known_hosts = kwargs.get("additional_known_hosts", None)
         self.host1 = self.verify_host(host1)
         self.host2 = self.verify_host(host2)
         self.extra_args: Optional[str] = extra_args
@@ -72,19 +73,24 @@ class ScriptGenerator:
 
     def verify_host(self, hostname: str) -> str:
         logger.debug("Verifying hostname: %s", hostname)
+        if self.additional_known_hosts:
+            for pattern, append_str in self.additional_known_hosts:
+                try:
+                    has_match = re.match(pattern, hostname)
+                    if has_match:
+                        logger.debug(
+                            "Matched hostname from additional_known_hosts: %s", hostname
+                        )
+                        return f"{hostname}{append_str}"
+                except:
+                    continue
         hosts = self.config.get("HOSTS", [])
         if isinstance(hosts, list):
-            if len(hosts) == 1:
-                pattern, append_str = hosts[0]
-                has_match = re.match(pattern, hostname)
-                if has_match:
-                    logger.debug("Matched hostname: %s", hostname)
-                    return f"{hostname}{append_str}"
-            elif len(hosts) > 1:
+            if len(hosts) >= 1:
                 for pattern, append_str in hosts:
                     has_match = re.match(pattern, hostname)
                     if has_match:
-                        logger.debug("Matched hostname: %s", hostname)
+                        logger.debug("Matched hostname from config.HOSTS: %s", hostname)
                         return f"{hostname}{append_str}"
 
         logger.debug("No matches: %s", hostname)

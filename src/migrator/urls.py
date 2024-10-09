@@ -28,6 +28,7 @@ urlpatterns = [
         views.CeleryTaskList.as_view(),
         name="api-tasks-list",
     ),
+    path("api/tasks/retry/<str:task_id>", views.retry_task, name="api-retry-task"),
     path(
         "api/tasks/archive/",
         views.ArchiveTask.as_view(),
@@ -55,4 +56,5 @@ urlpatterns = [
     ),
     path("account/", views.user_account, name="user-account"),
     path("update-account/", views.update_account, name="update-account"),
+    path("update-preferences/", views.update_preferences, name="update-preferences"),
 ]

@@ -1,0 +1,60 @@
+<!-- templates/admin/tasks.html -->
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Running tasks</h1>
+    <div class="mb-3">
+        <textarea id="running-tasks" class="form-control" rows="2" style="width: 50%; margin-bottom: 1em; height: 25vh;" disabled>
+        </textarea>
+    </div>
+    <div>
+        <button name="reload" class="button" onclick="getRunningTasks()">Reload</button>
+    </div>
+</div>
+<div class="container">
+    <h1>Admin Tasks</h1>
+    <p>Click the buttons below to perform the tasks.</p>
+    <form method="post" style="margin-bottom: 20px;">{% csrf_token %}
+        <button type="submit" name="validate_finished" class="button">Validate Finished Tasks</button>
+    </form>
+    <form method="post">{% csrf_token %}
+        <button type="submit" name="purge_results" class="button">Purge Old Results</button>
+    </form>
+    <form method="post">{% csrf_token %}
+        <button type="submit" name="long_running_test_task" class="button">Long running task</button>
+    </form>
+</div>
+
+<script>
+    const getRunningTasks = () => {
+        const textArea = document.getElementById('running-tasks');
+        const APIURL = "{% url 'admin:running-tasks' %}"
+        const data = {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+        };
+        
+        fetch(APIURL, data)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data=>{
+            console.log("Response->")
+            console.log(data)
+            textArea.value = JSON.stringify(data.data, null, 2);
+
+        })
+        .catch(error => {
+            console.error(`Fetch error: ${error.message}`);
+            throw error;
+        });
+    };
+</script>
+{% endblock %}

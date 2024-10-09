@@ -7,7 +7,7 @@
 {% block content %}
 
 <style>
-    .copy-btn {
+    .round-btn {
         cursor: pointer;
         color: blue;
         text-decoration: underline;
@@ -16,14 +16,24 @@
         border-radius: 50px;
         margin-left: 10px;
     }
-    .copy-btn:hover {
+    .round-btn:hover {
         background-color: lightblue;
+    }
+    .round-btn.disabled {
+        pointer-events: none; /* Prevents clicking */
+        opacity: 0.5; /* Makes button look disabled */
+        cursor: not-allowed; /* Changes cursor to indicate disabled state */
     }
 </style>
 
 <div class="container mt-3 pb-5">
     <div class="pb-3">
-        <h2 id="task-id" class="w-50 d-inline">{{ task_id }}</h2> <i id="copy-btn" class="copy-btn bi bi-clipboard"></i>
+        <h2 id="task-id" class="w-50 d-inline">{{ task_id }}</h2>
+        <i id="copy-btn" class="round-btn bi bi-clipboard"></i>
+        <i id="restart-btn" class="round-btn bi bi-arrow-repeat {% if not task_finished %}disabled{% endif %}"></i>
+    </div>
+    <div>
+        <h3>{{source}} -> {{destination}}</h3>
     </div>
     <table id="taskDetails" class="table">
         <thead>
@@ -59,12 +69,17 @@
             var taskId = $('#task-id').text();
             
             // Use the Clipboard API to copy text
-            window.navigator.clipboard.writeText(taskId).then(function() {
+            navigator.clipboard.writeText(taskId).then(function() {
                 // Optionally, show a message or provide feedback to the user
                 alert('Copied task ID: ' + taskId);
             }).catch(function(error) {
                 console.error('Failed to copy text: ', error);
             });
+        });
+        document.getElementById('restart-btn').addEventListener('click', function() {
+            var taskId = $('#task-id').text();
+            var redirectUrl = "{% url 'migrator:api-retry-task' 'TASK_ID_PLACEHOLDER' %}".replace('TASK_ID_PLACEHOLDER', taskId);
+            window.location.href = redirectUrl;  // This will redirect the user to the new URL
         });
     });
     

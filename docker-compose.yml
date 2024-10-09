@@ -18,16 +18,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  pymap-server:
+  pymap.lan:
     build: 
-      context: .
-      dockerfile: Dockerfiles/nginx/Dockerfile
+      context: Dockerfiles/nginx
       args:
         - STATIC_ROOT
         - GROUPNAME
         - GID
+        - PYMAP_HOSTNAME
     ports:
-      - "5000:80"
+      - "5001:80"
+      - "5000:443"
     depends_on:
       pymap:
         condition: service_healthy
@@ -50,7 +51,6 @@ services:
         - CELERY_BROKER_URL
         - CELERY_RESULT_BACKEND
         - PYMAP_LOGDIR
-        - SECRET_KEY
         - GROUPNAME
         - GID
     deploy:
@@ -62,6 +62,10 @@ services:
         condition: service_started
     volumes:
       - shared_logs:$PYMAP_LOGDIR
+      - type: bind
+        source: .secret
+        target: /home/celery/app/.secret
+        read_only: true
     user: "1001:$GID"  # UID:GID for user
     group_add:
       - $GROUPNAME
@@ -73,8 +77,6 @@ services:
     entrypoint: /bin/sh -c "sleep 10 && poetry run celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log"
     depends_on:
       - celery-worker
-    volumes:
-      - shared_logs:$PYMAP_LOGDIR
     user: "1001:$GID"  # UID:GID for user
     group_add:
       - $GROUPNAME
@@ -108,7 +110,7 @@ services:
         - CELERY_RESULT_BACKEND
         - STATIC_ROOT
         - PYMAP_LOGDIR
-        - SECRET_KEY
+        - PYMAP_HOSTNAME
         - GROUPNAME
         - GID
     healthcheck:
@@ -118,13 +120,17 @@ services:
       retries: 5
       start_period: 5s
     ports:
-      - "8000"
+      - 8000:8000
     depends_on:
       - postgres
       - celery-worker
     volumes:
       - shared_logs:$PYMAP_LOGDIR
       - static_root:$STATIC_ROOT
+      - type: bind
+        source: .secret
+        target: /home/pymap/app/.secret
+        read_only: true
     user: "1001:$GID"  # UID:GID for user
     group_add:
       - $GROUPNAME

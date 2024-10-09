@@ -28,6 +28,16 @@ logger = logging.getLogger(__name__)
 #         return f"Global Task Statistics"
 
 
+class UserPreferences(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    host_patterns = models.JSONField(
+        default=lambda: [["^(vm[0-9]*|vps)$", ".example.com"]]
+    )
+
+    def __str__(self) -> str:
+        return f"{self.user.username}'s Preferences"
+
+
 class CeleryTask(models.Model):
     """
     Model for an individual task
@@ -42,6 +52,7 @@ class CeleryTask(models.Model):
     domains = models.TextField(null=True, blank=True)
     archived = models.BooleanField(default=False)
     finished = models.BooleanField(default=False)
+    terminated = models.BooleanField(default=False)
     start_time = models.DateTimeField(auto_now_add=True, blank=True)
     # end_time = models.DateTimeField(default=0,blank=True)
     results_purged = models.BooleanField(default=False)

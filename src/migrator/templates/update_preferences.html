@@ -1,0 +1,34 @@
+<!-- update_account.html -->
+
+{% extends 'structure/base.html' %}
+{% block title %}Update User Preferences{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex">
+        <div class="card w-50 m-auto">
+            <div class="card-header">
+                <h2 class="card-title">Preferences</h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.host_patterns.id_for_label }}" class="form-label d-block">Patterns:</label>
+                        {{ form.host_patterns }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    textarea {
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+</style>
+{% endblock %}

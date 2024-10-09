@@ -4,12 +4,12 @@
 {% block title %}User Account{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container-fluid mt-5" style="width: 90%;">
     <h2>User Account</h2>
     <hr>
-    <div class="container-fluid d-flex justify-content-center">
-        <div class="card w-50">
-            <div class="card-header">
+    <div class="d-flex justify-content-evenly">
+        <div class="card" style="width: 45%;">
+            <div class="card-header text-center">
                 <h5 class="card-title mb-0">User Information</h5>
             </div>
             <div class="card-body">
@@ -21,12 +21,24 @@
                     <li class="list-group-item"><strong>Staff:</strong> {{ user.is_staff }}</li>
                     <li class="list-group-item"><strong>Last login:</strong> {{ user.last_login }}</li>
                     <li class="list-group-item"><strong>Creation Date:</strong> {{ user.date_joined }}</li>
-                    <!-- Add more user attributes here -->
                 </ul>
             </div>
             <div class="card-footer">
                 <a href="{% url 'password-change' %}" class="btn btn-primary">Change Password</a>
                 <a href="{% url 'migrator:update-account' %}" class="btn btn-primary">Update Information</a>
+            </div>
+        </div>
+        <div class="card" style="width: 45%;">
+            <div class="card-header text-center">
+                <h5 class="card-title mb-0">User Preferences</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Replacement patterns:</strong> <pre>{{ preferences.host_patterns | pprint }}</pre></li>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'migrator:update-preferences' %}" class="btn btn-primary">Update</a>
             </div>
         </div>
     </div>

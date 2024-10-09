@@ -1,13 +1,53 @@
-# myapp/forms.py
+import json
+import logging
+import re
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import User
+
+from .models import UserPreferences
+
+logger = logging.getLogger(__name__)
 
 
 class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = User
         fields = ["email", "first_name", "last_name"]
+
+
+class JSONPrettyWidget(forms.Textarea):
+    def format_value(self, value: str) -> str:
+        # Pretty print the value before rendering
+        try:
+            value = json.loads(value)  # Ensure it's valid JSON
+            return json.dumps(value, indent=4)
+        except (TypeError, ValueError):
+            return value  # If it's invalid, return as is
+
+
+class PreferencesForm(forms.ModelForm):
+    class Meta:
+        model = UserPreferences
+        fields = ["host_patterns"]
+
+    def clean_host_patterns(self):
+        patterns = self.data.get("host_patterns")
+        try:
+            if patterns:
+                # Load the JSON string into a Python object (list)
+                patterns_list = json.loads(patterns)
+
+                # Clean each pattern by removing whitespace
+                cleaned_patterns = [
+                    [re.sub(r"\s+", "", pattern) for pattern in sublist]
+                    for sublist in patterns_list
+                ]
+
+                # Return the cleaned list (not JSON string, just the Python object)
+                return cleaned_patterns
+        except (ValueError, TypeError):
+            raise forms.ValidationError("Invalid JSON format")
 
 
 class SyncForm(forms.Form):

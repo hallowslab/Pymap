@@ -15,7 +15,6 @@ ARG DJANGO_ENV \
     PYMAP_LOGDIR \
     PYMAP_ADMIN_USER \
     PYMAP_ADMIN_PASSWORD \
-    SECRET_KEY \
     POSTGRES_DB \
     POSTGRES_USER \
     POSTGRES_PASSWORD \
@@ -44,7 +43,8 @@ ENV PYTHONFAULTHANDLER=1 \
     DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} \
     CELERY_BROKER_URL=${CELERY_BROKER_URL} \
     CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND} \
-    STATIC_ROOT=${STATIC_ROOT}
+    STATIC_ROOT=${STATIC_ROOT} \
+    PYMAP_HOSTNAME=${PYMAP_HOSTNAME}
 
 # Create user and group
 RUN addgroup --gid $GID $GROUPNAME && \
@@ -52,6 +52,7 @@ RUN addgroup --gid $GID $GROUPNAME && \
 
 # Create the log directory and add permissions to user and group
 RUN mkdir -p $PYMAP_LOGDIR
+RUN touch "$PYMAP_LOGDIR/pymap-dev.log" "$PYMAP_LOGDIR/pymap.log"
 RUN chown -R pymap:$GROUPNAME $PYMAP_LOGDIR && chmod -R g+rw $PYMAP_LOGDIR
 
 USER pymap
@@ -82,14 +83,18 @@ RUN echo "$POSTGRES_HOST:$POSTGRES_PORT:$POSTGRES_DB:$POSTGRES_USER:$POSTGRES_PA
 RUN chmod 600 ./.pgpass
 
 # Create .secret file for SECRET_KEY
-RUN echo "$SECRET_KEY" > ./.secret
-RUN chmod 600 ./.secret
+#RUN echo "$SECRET_KEY" > ./.secret
+# The secret file should be mounted at runtime
+# create it and set permissions to avoid issues reading
+RUN touch .secret
+RUN chmod 600 .secret
+
 
 # Copy the project files
 COPY ./src/pyproject.toml ./
 COPY ./src/poetry.lock ./
 
-COPY Dockerfiles/django/init.sh ./init.sh
+COPY Dockerfiles/django/init.sh /home/pymap/init.sh
 
 # Install dependecies trough poetry
 RUN poetry install $(if [ "$DJANGO_ENV" = 'production' ]; then echo '--only main'; fi) \
@@ -98,6 +103,10 @@ RUN poetry install $(if [ "$DJANGO_ENV" = 'production' ]; then echo '--only main
 # copy the app
 COPY ./src ./
 
-ENTRYPOINT [ "/home/pymap/app/init.sh" ]
+USER root
+RUN chown -R pymap:pymap /home/pymap/app/
+USER pymap
+
+ENTRYPOINT [ "/home/pymap/init.sh" ]
 # For debbuging
 #CMD ["tail", "-f", "/dev/null"]

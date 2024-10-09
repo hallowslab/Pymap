@@ -38,10 +38,8 @@ def check_failed_is_only_spam(content: str) -> bool:
     lines: List[str] = [x for x in content.split("\n") if len(x) > 1]
     for line in lines:
         if re.match(SPAM_ERROR, line):
-            continue
-        else:
-            return False
-    return True
+            return True
+    return False
 
 
 def sub_check_output(command: str, filename: str, timeout: int = 5) -> str:
@@ -122,3 +120,22 @@ def get_logs_status(
         "end_time": end_time,
         "status": status_message,
     }
+
+
+# def validate_imap_credentials(host, port, username, password):
+#     try:
+#         # Connect to the server
+#         mail = imaplib.IMAP4(host, port)
+
+#         # Attempt to login
+#         mail.login(username, password)
+
+#         print("Login successful!")
+
+#         # Logout
+#         mail.logout()
+
+#         return True
+#     except imaplib.IMAP4.error as e:
+#         print(f"Login failed: {e}")
+#         return False

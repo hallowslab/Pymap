@@ -1,0 +1,76 @@
+services:
+  mail.pymap.lan:
+    &m1
+    build:
+      context: Dockerfiles/email-server
+      args:
+        - HOSTNAME=mail.pymap.lan
+        - SMTP_PORT=2525
+        - SMTP_SUBMISSION=5877
+        - IMAP_PORT=1433
+    environment:
+      - GENERATE_MESSAGES=true
+    container_name: m1
+    hostname: mail.pymap.lan
+    domainname: mail.pymap.lan
+    ports:
+      - 2525:25 # SMTP
+      - 5877:587 # SMTP submission
+      - 1433:143 # IMAP
+
+
+  vps.pymap.lan:
+    <<: *m1
+    build:
+      context: Dockerfiles/email-server
+      args:
+        - HOSTNAME=vps.pymap.lan
+        - SMTP_PORT=2526
+        - SMTP_SUBMISSION=5878
+        - IMAP_PORT=1434
+    container_name: m2
+    hostname: vps.pymap.lan
+    domainname: vps.pymap.lan
+    ports:
+      - 2526:25 # SMTP
+      - 5878:587 # SMTP submission
+      - 1434:143 # IMAP
+
+  r1:
+    &r1
+    image: roundcube/roundcubemail
+    container_name: r1
+    environment:
+      - ROUNDCUBEMAIL_DEFAULT_HOST=mail.pymap.lan
+      - ROUNDCUBEMAIL_SMTP_SERVER=smtp://mail.pymap.lan
+      - ROUNDCUBEMAIL_DB_TYPE=sqlite
+      - ROUNDCUBEMAIL_DEFAULT_PORT=1433
+      - ROUNDCUBEMAIL_SMTP_PORT=5877
+    ports:
+      - 8081:80
+    volumes:
+      - roundcube_mail:/var/www/html
+
+
+  r2:
+    <<: *r1
+    container_name: r2
+    environment:
+      - ROUNDCUBEMAIL_DEFAULT_HOST=vps.pymap.lan
+      - ROUNDCUBEMAIL_SMTP_SERVER=smtp://vps.pymap.lan
+      - ROUNDCUBEMAIL_DB_TYPE=sqlite
+      - ROUNDCUBEMAIL_DEFAULT_PORT=1434
+      - ROUNDCUBEMAIL_SMTP_PORT=5878
+    ports:
+      - 8082:80
+    volumes:
+      - roundcube_mail2:/var/www/html
+
+
+# networks:
+#   mailnet:
+#     driver: bridge
+
+volumes:
+  roundcube_mail:
+  roundcube_mail2:

@@ -1,49 +1,54 @@
-FROM alpine:3.15
+FROM ubuntu:22.04
 
-RUN set -xe
+ARG HOSTNAME \
+	SMTP_PORT \
+	SMTP_SUBMISSION \
+	IMAP_PORT
 
-# Install postfix, dovecot, and other required tools
-RUN apk update && apk upgrade && apk add --no-cache postfix dovecot supervisor mailx
-# Add user for nginx
-#RUN adduser -D -g 'www' www
+ENV GENERATE_MESSAGES=${GENERATE_MESSAGES}
 
-# supervisor log directories
-RUN mkdir -p /var/log/supervisor
+# Install Postfix and Dovecot
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y postfix dovecot-core dovecot-imapd dovecot-pop3d net-tools telnet mailutils rsyslog
 
-# Enable edge repos
-#RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories
-#RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-#RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
-#RUN cat /etc/apk/repositories
+# Modify Postfix Configuration
+RUN sed -i "s/^myhostname.*/myhostname = ${HOSTNAME}/" /etc/postfix/main.cf && \
+	sed -i 's/^#myorigin.*/myorigin = $mydomain/' /etc/postfix/main.cf && \
+	sed -i 's/^mydestination.*/mydestination = $myhostname, $mydomain, localhost.$mydomain, localhost/' /etc/postfix/main.cf && \
+	sed -i 's/^inet_interfaces.*/inet_interfaces = all/' /etc/postfix/main.cf
 
-# Postfix directories and permissions
-RUN mkdir -p /var/spool/postfix /var/spool/postfix/public /var/spool/postfix/pickup
-RUN chown root:postfix /var/spool/postfix
-RUN chown -R postfix:postdrop /var/spool/postfix/public
-RUN chown -R postfix:postdrop /var/spool/postfix/pickup
-RUN touch /var/log/postfix.log && chown postfix:postfix /var/log/postfix.log
+RUN echo "mydomain = ${HOSTNAME}" >> /etc/postfix/main.cf && \
+	echo "home_mailbox = Maildir/" >> /etc/postfix/main.cf
 
-#RUN ["sh", "-c", "/usr/sbin/postfix set-permissions --help"]
+# Modify Dovecot Configuration
+RUN sed -i 's/^mail_location.*/mail_location = maildir:~\/Maildir/' /etc/dovecot/conf.d/10-mail.conf && \
+    sed -i 's/^#disable_plaintext_auth.*/disable_plaintext_auth = no/' /etc/dovecot/conf.d/10-auth.conf && \
+	sed -i 's/^#auth_username_format =.*/auth_username_format = %n/' /etc/dovecot/conf.d/10-auth.conf && \
+    sed -i "s/#port = 143/port = ${IMAP_PORT}/" /etc/dovecot/conf.d/10-master.conf && \
+    sed -i "s/#port = 587/port = ${SMTP_SUBMISSION}/" /etc/dovecot/conf.d/10-master.conf && \
+	sed -i 's/^#log_path.*/log_path = \/var\/log\/dovecot.log/' /etc/dovecot/conf.d/10-logging.conf
 
-# Copy configuration files
-COPY postfix/main.cf /etc/postfix/main.cf
-COPY dovecot/dovecot.conf /etc/dovecot/dovecot.conf
-COPY supervisord.conf /etc/supervisord.conf
+RUN useradd -m pymap -p pymap -s /bin/false && \
+	echo "pymap:Password123"|chpasswd && \
+	mkdir /home/pymap/Maildir && \
+	chown pymap:pymap /home/pymap/Maildir/
 
-# Enable port 4600 on postfix
-RUN echo "4600      inet  n       -       n       -       -       smtpd" >> /etc/postfix/master.cf
+RUN useradd -m test -p test -s /bin/false && \
+	echo "test:Password123"|chpasswd && \
+	mkdir /home/test/Maildir && \
+	chown test:test /home/test/Maildir/
 
-# Add script to create accounts and messages
-COPY setup.sh /usr/local/bin/setup.sh
+RUN touch /var/log/postfix.log
+RUN chmod 640 /var/log/postfix.log
+RUN chown postfix:postfix /var/log/postfix.log
 
-# Expose required ports
-EXPOSE 2500 1430 4650 9930
+RUN touch /var/log/dovecot.log
+RUN chmod 640 /var/log/dovecot.log
+RUN chown dovecot:dovecot /var/log/dovecot.log
 
-#RUN which mail
-RUN ["sh", "-c", "/usr/local/bin/setup.sh"]
+COPY init.sh init.sh
+COPY bodies.list bodies.txt
+COPY subjects.list subjects.txt
+COPY generate_messages.sh generate_messages.sh
 
-# For interactive prompt
-#CMD ["sh", "-c", "tail -f /dev/null"]
-
-# Start services using supervisord
-CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["sh", "-c", "./init.sh"]

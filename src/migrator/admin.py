@@ -1,6 +1,11 @@
 import logging
 from typing import List, Union
-from django.http import HttpResponsePermanentRedirect, HttpResponseRedirect, HttpRequest
+from django.http import (
+    HttpResponsePermanentRedirect,
+    HttpResponseRedirect,
+    HttpRequest,
+    JsonResponse,
+)
 from django.urls import URLPattern, URLResolver, path
 from django.shortcuts import redirect
 from django.db.models import QuerySet
@@ -28,8 +33,13 @@ from django_celery_beat.admin import (
     CrontabScheduleAdmin,
 )
 
-from .models import CeleryTask
-from .tasks import purge_results, validate_finished
+from .models import CeleryTask, UserPreferences
+from .tasks import (
+    purge_results,
+    validate_finished,
+    get_running_tasks,
+    long_running_test_task,
+)
 from pymap import celery_app
 
 logger = logging.getLogger(__name__)
@@ -38,7 +48,13 @@ logger = logging.getLogger(__name__)
 
 
 class TaskAdmin(ModelAdmin):
-    actions = ["purge_results", "validate_finished", "archive_selected"]
+    actions = [
+        "purge_results",
+        "validate_finished",
+        "archive_selected",
+        "finished",
+        "terminated",
+    ]
     list_display = ["task_id", "source", "destination", "owner", "start_time"]
     ordering = ["-start_time"]
 
@@ -116,6 +132,11 @@ class TaskAdmin(ModelAdmin):
         )
 
 
+class PreferencesAdmin(ModelAdmin):
+    list_display = ["user", "host_patterns"]
+    ordering = ["user"]
+
+
 class CustomAdminSite(AdminSite):
     site_title: str = "Pymap site admin"
     site_header: str = "Pymap administration"
@@ -124,10 +145,26 @@ class CustomAdminSite(AdminSite):
     def get_urls(self) -> List[Union[URLPattern, URLResolver]]:
         urls = super().get_urls()
         custom_urls: list[URLResolver | URLPattern] = [
-            path("run-task/", self.admin_view(self.task_view), name="run-task"),
+            path("tasks/", self.admin_view(self.task_view), name="tasks"),
+            path(
+                "tasks/running-tasks",
+                self.admin_view(self.fetch_running_tasks),
+                name="running-tasks",
+            ),
         ]
         logger.debug("Custom admin loaded URLS: %s", custom_urls + urls)
         return custom_urls + urls
+
+    def fetch_running_tasks(self, request: HttpRequest) -> JsonResponse:
+        logger.debug("Fetch Running Tasks")
+        try:
+            tasks = get_running_tasks()
+            return JsonResponse({"data": tasks})
+        except Exception as e:
+            logger.critical("Unhandled exception: %s", e.__str__(), exc_info=True)
+            return JsonResponse(
+                {"error": "DJANGO:Unhandled exception", "data": e.__str__()}, status=400
+            )
 
     def task_view(
         self, request: HttpRequest
@@ -137,16 +174,19 @@ class CustomAdminSite(AdminSite):
                 purge_results.delay()
             elif "validate_finished" in request.POST:
                 validate_finished.delay()
-            return redirect("..")
+            elif "long_running_test_task" in request.POST:
+                long_running_test_task.delay()
+            return redirect("admin:tasks")
         context = dict(
             self.each_context(request),
         )
-        return TemplateResponse(request, "admin/run_task.html", context)
+        return TemplateResponse(request, "admin/tasks.html", context)
 
 
 custom_admin_site = CustomAdminSite(name="admin")
-# Custom task management model
+# Custom management models
 custom_admin_site.register(CeleryTask, TaskAdmin)
+custom_admin_site.register(UserPreferences, PreferencesAdmin)
 # Django models, need to be registered with the appropriate admin models from django.contrib.auth.admin
 custom_admin_site.register(User, UserAdmin)
 custom_admin_site.register(Group, GroupAdmin)

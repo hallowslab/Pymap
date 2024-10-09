@@ -3,7 +3,7 @@ import shlex
 import subprocess
 import time
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 
 from celery import shared_task
@@ -26,8 +26,78 @@ RProc = Dict[str, Any]
 CALL_SYSTEM_TYPE = Dict[str, (str | FProc)]
 
 
+def should_terminate_task(task_id: str) -> bool:
+    # Implement logic to check if the task should terminate
+    # For example, check a value in the database or cache
+    task = CeleryTask.objects.filter(task_id=task_id).first()
+    if task:
+        if task.terminated:
+            return True
+    return False
+
+
+def get_running_tasks() -> Dict[str, Dict[object, object]]:
+    inspector = Inspect(app=celery_app)
+    all_tasks: Dict[str, Dict[object, object]] = {
+        "active": {},
+        "reserved": {},
+        "scheduled": {},
+    }
+
+    # Check active tasks
+    active_tasks = inspector.active()
+    logger.debug(f"ACTIVE TASKS: {active_tasks}")
+    if active_tasks:
+        for worker, tasks in active_tasks.items():
+            all_tasks["active"][worker] = [
+                f"{task['name']} :: {task['id']}" for task in tasks
+            ]
+
+    # Check reserved tasks
+    reserved_tasks = inspector.reserved()
+    logger.debug(f"RESERVED TASKS: {reserved_tasks}")
+    if reserved_tasks:
+        for worker, tasks in reserved_tasks.items():
+            all_tasks["reserved"][worker] = [
+                f"{task['name']} :: {task['id']}" for task in tasks
+            ]
+
+    # Check scheduled tasks
+    scheduled_tasks = inspector.scheduled()
+    logger.debug(f"SCHEDULED TASKS: {scheduled_tasks}")
+    if scheduled_tasks:
+        for worker, tasks in scheduled_tasks.items():
+            all_tasks["scheduled"][worker] = [
+                f"{task['name']} :: {task['id']}" for task in tasks
+            ]
+
+    return all_tasks
+
+
+@shared_task
+def long_running_test_task(timeout: int = 100, wait_timer: int = 5) -> None:
+    ltime = timeout
+    while ltime > 0:
+        time.sleep(wait_timer)
+        ltime = ltime - wait_timer
+
+
 @shared_task(bind=True)
-def call_system(self, cmd_list: List[str]) -> CALL_SYSTEM_TYPE:
+def call_system(self, cmd_list: Optional[List[str]]) -> CALL_SYSTEM_TYPE:
+    # cmd_list is not optional and should always be a list of strings
+    # however this is a failsafe to avoid parsing invalid data
+    # It also is Optional to avoid type errors on the next statement
+    # Was implemented due to retry task since the stored data is a string
+    # and we need to parse it back to python
+    if not isinstance(cmd_list, list):
+        logger.critical(f"Expected cmd_list to be a list, got {type(cmd_list)}")
+        self.update_state(
+            state="FAILURE",
+            meta={
+                "status": "FAILURE",
+            },
+        )
+        return {"status": "FAILURE"}
     root_directory: str = settings.PYMAP_LOGDIR
     total_cmds: int = len(cmd_list)
     max_procs: int = 5
@@ -66,6 +136,13 @@ def call_system(self, cmd_list: List[str]) -> CALL_SYSTEM_TYPE:
                     procs.pop(key, None)
         return procs
 
+    def terminate_all(procs: RProc) -> None:
+        for key in list(procs):
+            proc = procs[key]
+            if isinstance(proc, subprocess.Popen):
+                logger.info(f"Terminating {proc.pid}")
+                proc.terminate()
+
     for index, cmd in enumerate(cmd_list):
         logger.info("Task %s Scheduling %s", task_id, index)
         # Some complex passwords or our regex/custom logic might fail to create a viable
@@ -74,9 +151,9 @@ def call_system(self, cmd_list: List[str]) -> CALL_SYSTEM_TYPE:
             shlex.split(cmd)
         except ValueError:
             logger.critical("Failed to parse and split the string received")
-            logger.debug(
-                "Received the following command string: %s", cmd, exc_info=True
-            )
+            # logger.debug(
+            #     "Received the following command string: %s", cmd, exc_info=True
+            # )
             # Continue to the next iteration of the loop
             continue
         n_cmd = subprocess.Popen(
@@ -102,10 +179,14 @@ def call_system(self, cmd_list: List[str]) -> CALL_SYSTEM_TYPE:
                 "status": "Processing...",
             },
         )
+        if should_terminate_task(task_id):
+            terminate_all(running_procs)
 
     while running_procs:
         running_procs = check_running(running_procs)
         nrp = len(running_procs)
+        if should_terminate_task(task_id):
+            terminate_all(running_procs)
         self.update_state(
             state="PROGRESS",
             meta={
@@ -116,7 +197,7 @@ def call_system(self, cmd_list: List[str]) -> CALL_SYSTEM_TYPE:
                 "status": "Processing...",
             },
         )
-        time.sleep(4)
+        time.sleep(10)
 
     self.update_state(
         state="SUCCESS",

@@ -1,31 +1,101 @@
 <!-- base.html -->
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="shortcut icon" type="image/png" href="{% static 'favicon.ico' %}"/>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <title>{% block title %}Pymap{% endblock %}</title>
+    <style>
+        body {
+            transition: background-color 0.3s ease-in-out;
+        }
+    
+        .dataTables_wrapper .dataTables_filter input[type="search"],
+        .dataTables_wrapper .dataTables_length select,
+        table.dataTable td,
+        table.dataTable th {
+            transition: background-color 0.3s ease-in-out;
+        }
+
+        .form-control,
+        .form-label,
+        .form-control::placeholder {
+            transition: background-color 0.3s ease-in-out;
+        }
+    
+        .dark-mode {
+            background-color: #121212;
+            color: antiquewhite;
+        }
+    
+        /* Applies dark themed styling to datatables when dark-mode is present in body */
+        .dark-mode .dataTables_wrapper .dataTables_filter input[type="search"],
+        .dark-mode .dataTables_wrapper .dataTables_length select,
+        .dark-mode table.dataTable td,
+        .dark-mode table.dataTable th {
+            background-color: #121212;
+            color: antiquewhite;
+        }
+
+        /* Dark mode styling for form elements */
+        .dark-mode .form-control {
+            background-color: #121212;
+            color: antiquewhite;
+            border: 1px solid #555;
+        }
+        .dark-mode .form-control::placeholder,
+        .dark-mode .form-label {
+            color: antiquewhite;
+        }
+
+        /* Dark mode styling for small buttons */
+        .dark-mode .round-btn {
+            color: aqua;
+        }
+        .dark-mode .round-btn:hover {
+            background-color:rgb(40, 68, 68);
+        }
+
+        /* Dark mode styling for card elements */
+        .dark-mode .card,
+        .dark-mode .card .list-group .list-group-item {
+            color: antiquewhite;
+            background-color: #121212;
+        }
+
+        .dark-mode .card {
+            border-color: #555;
+        }
+
+        /* Dark mode styling for list elements */
+        .dark-mode .list-group,
+        .dark-mode .list-group .list-group-item {
+            color: antiquewhite;
+            background-color: #121212;
+        }
+
+        /* Dark mode styling for modal elements */
+        .dark-mode .modal-content,
+        .dark-mode .modal-content .modal-header,
+        .dark-mode .modal-content .modal-body,
+        .dark-mode .modal-content .modal-footer {
+            color: antiquewhite;
+            background-color: #121212;
+        }
+
+
+    </style>
     {% block script %}{% endblock %}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if the privilege warning cookie is set
-            if (document.cookie.split(';').some((item) => item.trim().startsWith('privilege_warning='))) {
-                // Show the alert
-                alert('You do not have enough privileges to access the admin dashboard.');
-                
-                // Clear the cookie
-                document.cookie = "privilege_warning=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            }
-        });
-    </script>
+    
 </head>
 <body>
-    
     <div id="menu" class="mb-5">
         {% include 'structure/navbar.html' %}
     </div>
@@ -36,6 +106,70 @@
     
     <div id="footer pt-5">
         {% include 'structure/footer.html' %}
-    </div>    
+    </div>
+
+    <script>
+
+        // Function to apply the dark mode class based on local storage
+        const applyTheme = () => {
+            const darkMode = localStorage.getItem('darkMode');
+            if (darkMode === 'enabled') {
+                $('body').addClass('dark-mode');
+            } else {
+                $('body').removeClass('dark-mode');
+            }
+            console.debug('Dark mode enabled:', $('body').hasClass('dark-mode'));
+            switchIcon();
+        }
+
+        // Function to toggle dark mode and save preference
+        const toggleDarkMode = () => {
+            $('body').toggleClass('dark-mode');
+            const darkMode = $('body').hasClass('dark-mode') ? 'enabled' : 'disabled';
+            localStorage.setItem('darkMode', darkMode);
+            console.debug('Dark mode toggled:', $('body').hasClass('dark-mode'));
+            switchIcon();
+        }
+
+        // Function to switch the SVG icon
+        const switchIcon = () => {
+            let themeIcon = $('#themeIcon');
+            if ($('body').hasClass('dark-mode')) {
+                // Switch to moon icon
+                themeIcon.attr("class", "bi bi-moon");
+                themeIcon.attr("viewBox", "0 0 16 16");
+                themeIcon.html(`
+                <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278M4.858 1.311A7.27 7.27 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.32 7.32 0 0 0 5.205-2.162q-.506.063-1.029.063c-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286"/>
+                <path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.73 1.73 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.73 1.73 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.73 1.73 0 0 0 1.097-1.097zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+                `);
+            } else {
+                // Switch to sun icon
+                themeIcon.attr("class", "bi bi-brightness-alt-high-fill");
+                themeIcon.attr("viewBox", "0 0 16 16");
+                themeIcon.html(`
+                    <path d="M8 3a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 3m8 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5m-13.5.5a.5.5 0 0 0 0-1h-2a.5.5 0 0 0 0 1zm11.157-6.157a.5.5 0 0 1 0 .707l-1.414 1.414a.5.5 0 1 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m-9.9 2.121a.5.5 0 0 0 .707-.707L3.05 5.343a.5.5 0 1 0-.707.707zM8 7a4 4 0 0 0-4 4 .5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5 4 4 0 0 0-4-4"/>
+                `);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if the privilege warning cookie is set
+            if (document.cookie.split(';').some((item) => item.trim().startsWith('privilege_warning='))) {
+                // Show the alert
+                alert('You do not have enough privileges to access the admin dashboard.');
+                
+                // Clear the cookie
+                document.cookie = "privilege_warning=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            }
+
+            // Event listener for the theme switcher button
+            $('#theme-toggle').click(function() {
+                toggleDarkMode();
+            });
+
+            // Apply the theme on initial load
+            applyTheme();
+        });
+    </script>
 </body>
 </html>

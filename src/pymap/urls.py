@@ -24,7 +24,7 @@ from migrator.admin import custom_admin_site
 urlpatterns = [
     path("admin/doc/", include("django.contrib.admindocs.urls")),
     # path("admin/", admin.site.urls),
-    path("admin/", custom_admin_site.urls),
+    path("admin/", custom_admin_site.urls, name="index"),
     path("", include("migrator.urls", namespace="migrator")),
     path(
         "login/",
