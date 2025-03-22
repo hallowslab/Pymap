@@ -1,4 +1,4 @@
-FROM debian:12.6 as debian-builder
+FROM debian:12.10 as debian-builder
 
 # Install system and perl dependencies
 RUN apt-get update && \
@@ -26,7 +26,7 @@ WORKDIR /opt/imapsync
 RUN git clone https://github.com/imapsync/imapsync.git . && make install
 
 
-FROM debian:12.6 as debian-base
+FROM debian:12.10 as debian-base
 # Needed for fixing permissions of files created by Docker:
 ARG UID=1000 \
     GID=1000 \
