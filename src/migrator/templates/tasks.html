@@ -35,7 +35,7 @@
 <script>
     // Defined above all scopes so it can be accessed in other functions
     var tasksTable;
-    let showOwnedOnly = false;
+    let showOwnedOnly = true;
     function handleArchive(e,dt,node,config) {
         //e.disabled = true
         let selection = listSelected(dt);
@@ -192,7 +192,7 @@
                     },
                     buttons: [
                     {
-                        text: 'My tasks',
+                        text: 'Toggle All/User tasks',
                         action: handleShowOwnedOnly,
                         className: 'btn-info',
                         attr: {

@@ -20,7 +20,7 @@
             "expire_seconds": null,
             "one_off": false,
             "start_time": "2024-01-01T00:00:00+00:00",
-            "enabled": true,
+            "enabled": false,
             "last_run_at": null,
             "total_run_count": 0,
             "date_changed": "2024-01-01T00:00:00+00:00",

@@ -351,7 +351,7 @@ class CeleryTaskList(ListCreateAPIView):
         logger.debug("Search Value: %s", search_value)
 
         # Handle our custom parameters
-        show_owned_only = request.GET.get("show_owned_only", False)
+        show_owned_only = request.GET.get("show_owned_only", True)
 
         # Get queryset
         queryset = self.filter_queryset(self.get_queryset())
