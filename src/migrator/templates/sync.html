@@ -37,14 +37,14 @@
                 {{form.additional_arguments}}
             </div>
             <div class="col-md-2">
-                <a tabindex="0" role="button" id="check-id" class="btn btn-info" data-toggle="popover" data-trigger="focus" title="Check ID">Check ID</a>
+                <a tabindex="0" role="button" id="check-id" class="btn btn-info" data-toggle="popover" data-trigger="focus" title="Check ID">Check ID(WIP!)</a>
             </div>
             <div class="col-md-3">
                 <label for="{{ form.dry_run.id_for_label }}" class="form-check-label">Dry Run</label>
                 {{form.dry_run}}
             </div>
             <div class="col-md-3">
-                <button class="btn btn-success">Validate(WIP!!!)</button>
+                <button class="btn btn-success">Validate(WIP!)</button>
             </div>
         </div>
         
@@ -62,7 +62,11 @@
 
     function popoverContent() {
         if (loading) {
-            return `<div/>`;
+            return `
+                <div>
+                    <span>Loading...</span>
+                </div>
+                `;
         } else {
             return `
                 <div>
