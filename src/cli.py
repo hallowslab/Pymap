@@ -3,7 +3,7 @@ import os
 import logging
 from logging.config import dictConfig
 from core.pymap_core import ScriptGenerator
-from core.tools import setup_argparse, set_logging, load_config
+from core.utils import setup_argparse, set_logging, load_config
 
 logger = logging.getLogger("PymapCLI")
 

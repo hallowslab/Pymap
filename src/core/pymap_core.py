@@ -3,6 +3,8 @@ import os
 from typing import Any, Generator, Iterable, List, Optional
 import logging
 
+from .utils import verify_host
+
 logger = logging.getLogger("pymap_core")
 
 
@@ -26,9 +28,11 @@ class ScriptGenerator:
         **kwargs: Any,
     ) -> None:
         self.config = kwargs.get("config", {})
-        self.additional_known_hosts = kwargs.get("additional_known_hosts", None)
-        self.host1 = self.verify_host(host1)
-        self.host2 = self.verify_host(host2)
+        self.additional_known_hosts: Optional[List[List[str]]] = kwargs.get(
+            "additional_known_hosts", None
+        )
+        self.host1 = verify_host(host1, self.get_known_hosts())
+        self.host2 = verify_host(host2, self.get_known_hosts())
         self.extra_args: Optional[str] = extra_args
         self.dest: str = kwargs.get("destination", "sync")
         self.line_count: int = kwargs.get("split", 30)
@@ -71,30 +75,11 @@ class ScriptGenerator:
                     list(set(self.domains + [domain])) if domain else self.domains
                 )
 
-    def verify_host(self, hostname: str) -> str:
-        logger.debug("Verifying hostname: %s", hostname)
+    def get_known_hosts(self) -> Optional[List[List[str]]]:
+        config_hosts: Optional[List[List[str]]] = self.config.get("HOSTS", [])
         if self.additional_known_hosts:
-            for pattern, append_str in self.additional_known_hosts:
-                try:
-                    has_match = re.match(pattern, hostname)
-                    if has_match:
-                        logger.debug(
-                            "Matched hostname from additional_known_hosts: %s", hostname
-                        )
-                        return f"{hostname}{append_str}"
-                except:
-                    continue
-        hosts = self.config.get("HOSTS", [])
-        if isinstance(hosts, list):
-            if len(hosts) >= 1:
-                for pattern, append_str in hosts:
-                    has_match = re.match(pattern, hostname)
-                    if has_match:
-                        logger.debug("Matched hostname from config.HOSTS: %s", hostname)
-                        return f"{hostname}{append_str}"
-
-        logger.debug("No matches: %s", hostname)
-        return hostname
+            return self.additional_known_hosts
+        return config_hosts
 
     def process_file(self, fpath: str) -> None:
         """
@@ -135,7 +120,7 @@ class ScriptGenerator:
 
         Entrypoint for the data, other functions like process_strings and process_file should always call this
         """
-        new_line = ""
+        new_line: Optional[str] = ""
         for line in uinput:
             if line and len(line) > 1:
                 # Check for domains
