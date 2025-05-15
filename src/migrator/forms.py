@@ -54,11 +54,9 @@ class SyncForm(forms.Form):
     credentials_placeholder = "Source@Account Password Destination@Account Password\ntest@email.com Password123 test@email.com Password123"
     custom_label = forms.CharField(
         label="Custom Identifier(Optional)",
-        widget=forms.TextInput(
-            attrs={"class": "form-control", "placeholder": "..."}
-        ),
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "..."}),
         required=False,
-        initial=""
+        initial="",
     )
     source = forms.CharField(
         label="source",

@@ -53,7 +53,9 @@ def get_running_tasks() -> Dict[str, Dict[str, list]]:
                 all_tasks["active"][worker] = []
             for task in tasks:
                 if "name" in task:
-                    all_tasks["active"][worker].append(f"{task['name']} :: {task['id']}")
+                    all_tasks["active"][worker].append(
+                        f"{task['name']} :: {task['id']}"
+                    )
                 else:
                     logger.warning("Task is missing 'name' key: %s", task)
 
@@ -66,7 +68,9 @@ def get_running_tasks() -> Dict[str, Dict[str, list]]:
                 all_tasks["reserved"][worker] = []
             for task in tasks:
                 if "name" in task:
-                    all_tasks["reserved"][worker].append(f"{task['name']} :: {task['id']}")
+                    all_tasks["reserved"][worker].append(
+                        f"{task['name']} :: {task['id']}"
+                    )
                 else:
                     logger.warning("Task is missing 'name' key: %s", task)
 
@@ -79,7 +83,9 @@ def get_running_tasks() -> Dict[str, Dict[str, list]]:
                 all_tasks["scheduled"][worker] = []
             for task in tasks:
                 if "name" in task["request"]:
-                    all_tasks["scheduled"][worker].append(f"{task['request']['name']} :: {task['request']['id']}")
+                    all_tasks["scheduled"][worker].append(
+                        f"{task['request']['name']} :: {task['request']['id']}"
+                    )
                 else:
                     logger.warning("Task is missing 'name' key: %s", task)
 
@@ -408,7 +414,7 @@ def validate_finished() -> None:
 # It should not be pre-configured and the admin must create a periodic task
 @shared_task
 def modify_older_than(
-    mode:str="a",
+    mode: str = "a",
     weeks: int = int("4"),
     days: int = int("0"),
     hours: int = int("0"),
@@ -416,7 +422,9 @@ def modify_older_than(
 ) -> None:
     td = timedelta(weeks=4, days=0, hours=0, minutes=0)
     try:
-        td = timedelta(weeks=int(weeks), days=int(days), hours=int(hours), minutes=int(minutes))
+        td = timedelta(
+            weeks=int(weeks), days=int(days), hours=int(hours), minutes=int(minutes)
+        )
     except ValueError:
         logger.error(
             "Invalid values passed to modify older tasks: weeks %s Days %s, Hours %s, Minutes %s",

@@ -34,11 +34,7 @@ from django_celery_beat.admin import (
 )
 
 from .models import CeleryTask, UserPreferences
-from .tasks import (
-    purge_results,
-    validate_finished,
-    get_running_tasks
-)
+from .tasks import purge_results, validate_finished, get_running_tasks
 from pymap import celery_app
 
 logger = logging.getLogger(__name__)

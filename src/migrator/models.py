@@ -38,9 +38,7 @@ class UserPreferences(models.Model):
     # Nested classes
     # Arbitrary class instances (e.g. MyClass(4.3, 5.7))
     # Lambdas
-    host_patterns = models.JSONField(
-        default=host_patterns_default 
-    )
+    host_patterns = models.JSONField(default=host_patterns_default)
 
     def __str__(self) -> str:
         return f"{self.user.username}'s Preferences"

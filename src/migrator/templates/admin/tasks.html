@@ -5,7 +5,8 @@
 <div class="container">
     <h1>Running tasks</h1>
     <div class="mb-3">
-        <textarea id="running-tasks" class="form-control" rows="2" style="width: 50%; margin-bottom: 1em; height: 25vh;" disabled>
+        <textarea id="running-tasks" class="form-control" rows="2" style="width: 50%; margin-bottom: 1em; height: 25vh;"
+            disabled>
         </textarea>
     </div>
     <div>
@@ -34,24 +35,24 @@
                 'X-CSRFToken': '{{ csrf_token }}'
             },
         };
-        
-        fetch(APIURL, data)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data=>{
-            console.log("Response->")
-            console.log(data)
-            textArea.value = JSON.stringify(data.data, null, 2);
 
-        })
-        .catch(error => {
-            console.error(`Fetch error: ${error.message}`);
-            throw error;
-        });
+        fetch(APIURL, data)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Response->")
+                console.log(data)
+                textArea.value = JSON.stringify(data.data, null, 2);
+
+            })
+            .catch(error => {
+                console.error(`Fetch error: ${error.message}`);
+                throw error;
+            });
     };
 </script>
 {% endblock %}
