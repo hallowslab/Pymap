@@ -120,22 +120,3 @@ def get_logs_status(
         "end_time": end_time,
         "status": status_message,
     }
-
-
-# def validate_imap_credentials(host, port, username, password):
-#     try:
-#         # Connect to the server
-#         mail = imaplib.IMAP4(host, port)
-
-#         # Attempt to login
-#         mail.login(username, password)
-
-#         print("Login successful!")
-
-#         # Logout
-#         mail.logout()
-
-#         return True
-#     except imaplib.IMAP4.error as e:
-#         print(f"Login failed: {e}")
-#         return False
