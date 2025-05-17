@@ -46,4 +46,13 @@ urlpatterns = [
         login_required(auth_views.PasswordResetDoneView.as_view()),
         name="password-change-done",
     ),
-] + ([path("__debug__/", include("debug_toolbar.urls"))] if settings.DEBUG else [])
+]
+
+if settings.DEBUG:
+    if "debug_toolbar" in settings.INSTALLED_APPS:
+        import debug_toolbar
+
+        urlpatterns = [
+            path("__debug__/", include(debug_toolbar.urls)),
+            *urlpatterns,
+        ]
