@@ -140,12 +140,10 @@ class CustomAdminSite(AdminSite):
     def get_urls(self) -> List[Union[URLPattern, URLResolver]]:
         urls = super().get_urls()
         custom_urls: list[URLResolver | URLPattern] = [
-            path("tasks/", self.admin_view(self.task_view), name="tasks"),
-            path(
-                "tasks/running-tasks",
-                self.admin_view(self.fetch_running_tasks),
-                name="running-tasks",
-            ),
+            path("commands/", self.admin_view(self.task_view), name="commands"),
+            path("commands/running-tasks", self.admin_view(self.fetch_running_tasks), name="running-tasks"),
+            path("commands/validate-finished", self.admin_view(self.validate_finished), name="validate-finished"),
+            path("commands/purge-results", self.admin_view(self.purge_results), name="purge-results"),
         ]
         logger.debug("Custom admin loaded URLS: %s", custom_urls + urls)
         return custom_urls + urls
@@ -160,20 +158,30 @@ class CustomAdminSite(AdminSite):
             return JsonResponse(
                 {"error": "DJANGO:Unhandled exception", "data": e.__str__()}, status=400
             )
+    
+    def validate_finished(self, request: HttpRequest) -> JsonResponse:
+        try:
+            validate_finished.delay()
+            return JsonResponse({"status": "queued"})
+        except Exception as e:
+            logger.exception("Error in validate_finished")
+            return JsonResponse({"error": str(e)}, status=500)
+
+    def purge_results(self, request: HttpRequest) -> JsonResponse:
+        try:
+            purge_results.delay(1, 0, 0, finished_field="true")
+            return JsonResponse({"status": "queued"})
+        except Exception as e:
+            logger.exception("Error in purge_results")
+            return JsonResponse({"error": str(e)}, status=500)
 
     def task_view(
         self, request: HttpRequest
-    ) -> (TemplateResponse | HttpResponseRedirect | HttpResponsePermanentRedirect):
-        if request.method == "POST":
-            if "purge_results" in request.POST:
-                purge_results.delay()
-            elif "validate_finished" in request.POST:
-                validate_finished.delay()
-            return redirect("admin:tasks")
+    ) -> (TemplateResponse):
         context = dict(
             self.each_context(request),
         )
-        return TemplateResponse(request, "admin/tasks.html", context)
+        return TemplateResponse(request, "admin/commands.html", context)
 
 
 custom_admin_site = CustomAdminSite(name="admin")
