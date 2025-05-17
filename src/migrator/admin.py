@@ -141,9 +141,21 @@ class CustomAdminSite(AdminSite):
         urls = super().get_urls()
         custom_urls: list[URLResolver | URLPattern] = [
             path("commands/", self.admin_view(self.task_view), name="commands"),
-            path("commands/running-tasks", self.admin_view(self.fetch_running_tasks), name="running-tasks"),
-            path("commands/validate-finished", self.admin_view(self.validate_finished), name="validate-finished"),
-            path("commands/purge-results", self.admin_view(self.purge_results), name="purge-results"),
+            path(
+                "commands/running-tasks",
+                self.admin_view(self.fetch_running_tasks),
+                name="running-tasks",
+            ),
+            path(
+                "commands/validate-finished",
+                self.admin_view(self.validate_finished),
+                name="validate-finished",
+            ),
+            path(
+                "commands/purge-results",
+                self.admin_view(self.purge_results),
+                name="purge-results",
+            ),
         ]
         logger.debug("Custom admin loaded URLS: %s", custom_urls + urls)
         return custom_urls + urls
@@ -158,7 +170,7 @@ class CustomAdminSite(AdminSite):
             return JsonResponse(
                 {"error": "DJANGO:Unhandled exception", "data": e.__str__()}, status=400
             )
-    
+
     def validate_finished(self, request: HttpRequest) -> JsonResponse:
         try:
             validate_finished.delay()
@@ -175,9 +187,7 @@ class CustomAdminSite(AdminSite):
             logger.exception("Error in purge_results")
             return JsonResponse({"error": str(e)}, status=500)
 
-    def task_view(
-        self, request: HttpRequest
-    ) -> (TemplateResponse):
+    def task_view(self, request: HttpRequest) -> (TemplateResponse):
         context = dict(
             self.each_context(request),
         )

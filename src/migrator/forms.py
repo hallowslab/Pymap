@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from typing import List, Optional
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import User
@@ -31,7 +32,7 @@ class PreferencesForm(forms.ModelForm):
         model = UserPreferences
         fields = ["host_patterns"]
 
-    def clean_host_patterns(self):
+    def clean_host_patterns(self) -> Optional[List[List[str]]]:
         patterns = self.data.get("host_patterns")
         try:
             if patterns:
@@ -48,6 +49,7 @@ class PreferencesForm(forms.ModelForm):
                 return cleaned_patterns
         except (ValueError, TypeError):
             raise forms.ValidationError("Invalid JSON format")
+        return None
 
 
 class SyncForm(forms.Form):

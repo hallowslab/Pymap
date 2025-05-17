@@ -2,7 +2,7 @@
 import os
 import shutil
 import logging
-from typing import Any
+from typing import Any, List
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 #         return f"Global Task Statistics"
 
 
-def host_patterns_default():
+def host_patterns_default() -> List[List[str]]:
     return [["^(vm[0-9]*|vps)$", ".example.com"]]
 
 

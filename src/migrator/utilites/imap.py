@@ -1,11 +1,22 @@
 import logging
+from typing import Callable, List, TypedDict
 from imaplib import IMAP4, IMAP4_SSL
 
 logger = logging.getLogger("migrator.utilities.imap")
 
+IMAPConstructor = Callable[..., IMAP4]
 
-def check_imap_id_support(host, timeout=5) -> bool:
-    configs = [{"function": IMAP4_SSL, "port": 993}, {"function": IMAP4, "port": 143}]
+
+class IMAPConfig(TypedDict):
+    function: IMAPConstructor
+    port: int
+
+
+def check_imap_id_support(host: str, timeout: int = 5) -> bool:
+    configs: List[IMAPConfig] = [
+        {"function": IMAP4_SSL, "port": 993},
+        {"function": IMAP4, "port": 143},
+    ]
     for config in configs:
         imap = None
         try:
