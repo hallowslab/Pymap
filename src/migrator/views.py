@@ -38,6 +38,7 @@ from .forms import SyncForm, CustomUserChangeForm, PreferencesForm
 from .tasks import call_system
 from pymap import celery_app
 from .utilites.helpers import get_logs_status
+from .utilites.imap import check_imap_id_support
 from core.pymap_core import ScriptGenerator
 
 logger = logging.getLogger(__name__)
@@ -173,7 +174,9 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
             clean_input = re.sub(r"\r\n", "\n", form.cleaned_data["input_text"].strip())
             input_text: List[str] = clean_input.split("\n")
             logger.debug("Input after split %s", input_text)
-            additional_arguments: str = form.cleaned_data.get("additional_arguments", "")
+            additional_arguments: str = form.cleaned_data.get(
+                "additional_arguments", ""
+            )
             custom_label: str = form.cleaned_data.get("custom_label", "")
             dry_run: bool = form.cleaned_data["dry_run"]
             config = settings.PYMAP_SETTINGS
@@ -249,7 +252,7 @@ def retry_task(
     # This is to avoid -> Caution: A complex expression can overflow the C stack and cause a crash.
     MAX_LENGTH = 20000
 
-    def validate_and_evaluate(input_str: str, max_length=MAX_LENGTH) -> Any:
+    def validate_and_evaluate(input_str: str, max_length: int = MAX_LENGTH) -> Any:
         if len(input_str) > max_length:
             raise ValueError(
                 f"Input string exceeds the maximum length of {max_length} characters."
@@ -361,7 +364,9 @@ class CeleryTaskList(ListCreateAPIView):
         # Filtering based on search value
         if search_value != "":
             queryset = queryset.filter(
-                Q(task_id__icontains=search_value) | Q(domains__icontains=search_value) | Q(custom_label__icontains=search_value)
+                Q(task_id__icontains=search_value)
+                | Q(domains__icontains=search_value)
+                | Q(custom_label__icontains=search_value)
             )
         else:
             queryset = queryset.filter(archived=False)
@@ -664,3 +669,44 @@ class DeleteTask(APIView):
             serializer.errors,
         )
         return JsonResponse({"error": serializer.errors}, status=400)
+
+
+class CheckIDs(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: APIRequest) -> APIResponse:
+        source: str = request.data.get("source", "")
+        destination: str = request.data.get("destination", "")
+
+        # Replace with real logic
+        source_id = check_imap_id_support(source)
+        destination_id = check_imap_id_support(destination)
+
+        logger.debug(
+            f"Check IDs for: {source}:{source_id} {destination}:{destination_id}"
+        )
+
+        return APIResponse(
+            {
+                "content": f"Source has ID capabilities: {source_id}\nDestination has ID capabilities: {destination_id}"
+            },
+            status=200,
+        )
+
+
+class CheckCredentials(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: APIRequest) -> APIResponse:
+        source = request.data.get("source")
+        destination = request.data.get("destination")
+        user_input = request.data.get("input")
+
+        logger.debug(f"User Input: {user_input}")
+
+        return APIResponse(
+            {
+                "content": f"Error: Not implemented!\nReceived:\nSource: {source}\nDestination: {destination},Input: {user_input}"
+            },
+            status=501,
+        )

@@ -54,6 +54,12 @@ urlpatterns = [
         views.CeleryTaskLogDetails.as_view(),
         name="api-tasks-log-details",
     ),
+    path("api/check/hasID", views.CheckIDs.as_view(), name="api-check-hasID"),
+    path(
+        "api/check/credentials",
+        views.CheckCredentials.as_view(),
+        name="api-check-credentials",
+    ),
     path("account/", views.user_account, name="user-account"),
     path("update-account/", views.update_account, name="update-account"),
     path("update-preferences/", views.update_preferences, name="update-preferences"),

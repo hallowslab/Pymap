@@ -2,6 +2,38 @@
 
 {% block content %}
 <div class="container">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasExample"
+        aria-controls="offcanvasExample">
+        ⛮ Tools
+    </button>
+
+    <!-- Offcanvas Toolbar -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasExample" aria-labelledby="offcanvasExampleLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="offcanvasExampleLabel">Command Toolbar</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div>
+                Commands:
+                Check ID - Validates Source and Destination have ID capabilities(<a href="https://www.iana.org/assignments/imap-capabilities/imap-capabilities.xhtml">rfc2971</a>)
+                Check Credentials - Tries to validate user credentials
+            </div>
+            <div class="dropdown mt-3">
+                <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton"
+                    data-bs-toggle="dropdown">
+                    Run command
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <li><a class="dropdown-item" id="check-id-item">Check ID</a></li>
+                    <li><a class="dropdown-item" id="check-credentials">Check credentials</a></li>
+                </ul>
+            </div>
+            <textarea id="toolbar-command-output" rows="4" style="width: 90%; margin: 1em" disabled></textarea>
+        </div>
+    </div>
+
+    <!-- Sync form -->
     <form method="post" action="{% url 'migrator:sync' %}">
         {% csrf_token %}
         <div class="row mb-2 fs-5">
@@ -23,32 +55,27 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="row mb-5">
             <div class="col-12 text-center fs-5">
                 <label for="{{ form.input_text.id_for_label }}" class="form-label">Input</label>
                 {{form.input_text}}
             </div>
         </div>
-        
+
         <div class="row mb-5 fs-5">
             <div class="col-md-4">
-                <label for="{{ form.additional_arguments.id_for_label }}" class="form-label d-inline-flex">Additional Arguments:</label>
+                <label for="{{ form.additional_arguments.id_for_label }}" class="form-label d-inline-flex">Additional
+                    Arguments:</label>
                 {{form.additional_arguments}}
-            </div>
-            <div class="col-md-2">
-                <a tabindex="0" role="button" id="check-id" class="btn btn-info" data-toggle="popover" data-trigger="focus" title="Check ID">Check ID(WIP!)</a>
             </div>
             <div class="col-md-3">
                 <label for="{{ form.dry_run.id_for_label }}" class="form-check-label">Dry Run</label>
                 {{form.dry_run}}
             </div>
-            <div class="col-md-3">
-                <button class="btn btn-success">Validate(WIP!)</button>
-            </div>
         </div>
-        
-        
+
+
         <div class="row mb-5">
             <div class="col-12 text-center">
                 <button type="submit" class="btn btn-primary" value="submit">Start Sync</button>
@@ -58,36 +85,79 @@
 </div>
 
 <script>
-    let loading = false;
+    document.addEventListener("DOMContentLoaded", () => {
+        const toolbarCommandOutput = document.getElementById("toolbar-command-output")
 
-    function popoverContent() {
-        if (loading) {
-            return `
-                <div>
-                    <span>Loading...</span>
-                </div>
-                `;
-        } else {
-            return `
-                <div>
-                    <span>Source has ID: </span>
-                    <br/>
-                    <span>Destination has ID: </span>
-                </div>
-            `;
-        }
-    }
-    $(document).ready(()=>{
-        $(function () {
-            $('#check-id').popover({
-                container: 'body',
-                trigger: 'focus',
-                html: true,
-                placement: 'bottom',
-                template: '<div class="popover" role="tooltip"><div class="popover-body"></div></div>',
-                content: popoverContent
+        // Check ID event listener
+        document.getElementById("check-id-item").addEventListener("click", (e) => {
+            e.preventDefault();
+            let source = document.getElementById("id_source").value
+            let destination = document.getElementById("id_destination").value
+            // Show loading state
+            toolbarCommandOutput.textContent = "Loading...";
+            if (source.length <=3 || destination.length <= 3) {
+                alert("You need to specify Source and|or Destination server")
+                return
+            }
+            // Replace with your actual AJAX request to the backend
+            fetch("{% url 'migrator:api-check-hasID' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    source: source,
+                    destination: source
+                })
             })
-        })
-    })
+            .then(response => response.json())
+            .then(data => {
+                toolbarCommandOutput.textContent = data.content
+            })
+            .catch(error => {
+                toolbarCommandOutput.textContent = "Error...."
+                console.error("Check ID failed:", error);
+            });
+        });
+
+        document.getElementById("check-credentials").addEventListener("click", (e) => {
+            e.preventDefault();
+            let source = document.getElementById("id_source").value
+            let destination = document.getElementById("id_destination").value
+            let input = document.getElementById("id_input_text").value
+            // Show loading state
+            toolbarCommandOutput.textContent = "Loading...";
+            if (source.length <=3 || destination.length <= 3) {
+                alert("You need to specify Source and|or Destination server")
+                return
+            } else if (input.length <= 10) {
+                alert("You need to specify the account to check in the input element")
+                return
+            }
+            // Replace with your actual AJAX request to the backend
+            fetch("{% url 'migrator:api-check-credentials' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    input: input
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                toolbarCommandOutput.textContent = data.content
+            })
+            .catch(error => {
+                toolbarCommandOutput.textContent = "Error...."
+                console.error("Check credentials failed:", error);
+            });
+        });
+
+    });
+
+    
 </script>
 {% endblock %}
