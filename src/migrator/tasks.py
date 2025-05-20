@@ -29,6 +29,15 @@ CALL_SYSTEM_TYPE = Dict[str, (str | FProc)]
 def should_terminate_task(task_id: str) -> bool:
     # Implement logic to check if the task should terminate
     # For example, check a value in the database or cache
+    """
+    Checks if a task with the given ID has been marked for termination.
+    
+    Args:
+        task_id: The unique identifier of the Celery task.
+    
+    Returns:
+        True if the task's 'terminated' flag is set; otherwise, False.
+    """
     task = CeleryTask.objects.filter(task_id=task_id).first()
     if task:
         if task.terminated:
@@ -37,6 +46,12 @@ def should_terminate_task(task_id: str) -> bool:
 
 
 def get_running_tasks() -> Dict[str, Dict[str, list]]:
+    """
+    Retrieves and categorizes currently running Celery tasks by worker and state.
+    
+    Returns:
+        A dictionary mapping task states ('active', 'reserved', 'scheduled') to worker names and lists of task descriptions in the format 'name :: id'.
+    """
     inspector = Inspect(app=celery_app)
     all_tasks: Dict[str, Dict[str, list]] = {
         "active": {},
@@ -99,6 +114,17 @@ def call_system(self, cmd_list: Optional[List[str]]) -> CALL_SYSTEM_TYPE:
     # It also is Optional to avoid type errors on the next statement
     # Was implemented due to retry task since the stored data is a string
     # and we need to parse it back to python
+    """
+    Executes a list of shell commands concurrently with a maximum of 5 parallel subprocesses.
+    
+    Each command is run in its own subprocess, with output suppressed and log directory paths adjusted per task. The function periodically updates task progress, manages process concurrency, and checks for external termination requests. Upon completion, it records the total runtime and marks the task as finished in the database.
+    
+    Args:
+        cmd_list: List of shell command strings to execute.
+    
+    Returns:
+        A dictionary containing the overall status and the return codes of each subprocess.
+    """
     if not isinstance(cmd_list, list):
         logger.critical(f"Expected cmd_list to be a list, got {type(cmd_list)}")
         self.update_state(
@@ -420,6 +446,18 @@ def modify_older_than(
     hours: int = int("0"),
     minutes: int = int("0"),
 ) -> None:
+    """
+    Archives or deletes finished CeleryTask entries older than a specified time period.
+    
+    Args:
+        mode: Operation mode; "a" to archive tasks, "d" to delete them.
+        weeks: Number of weeks to include in the age threshold.
+        days: Number of days to include in the age threshold.
+        hours: Number of hours to include in the age threshold.
+        minutes: Number of minutes to include in the age threshold.
+    
+    Tasks that finished before the computed cutoff date are either marked as archived or deleted, depending on the mode. If invalid time values are provided, the operation is aborted.
+    """
     td = timedelta(weeks=4, days=0, hours=0, minutes=0)
     try:
         td = timedelta(

@@ -29,6 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 def host_patterns_default() -> List[List[str]]:
+    """
+    Returns the default host pattern list for user preferences.
+    
+    Returns:
+        A list containing a single host pattern and domain suffix pair.
+    """
     return [["^(vm[0-9]*|vps)$", ".example.com"]]
 
 
@@ -41,6 +47,9 @@ class UserPreferences(models.Model):
     host_patterns = models.JSONField(default=host_patterns_default)
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the user preferences, including the associated username.
+        """
         return f"{self.user.username}'s Preferences"
 
 

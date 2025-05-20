@@ -138,6 +138,14 @@ class CustomAdminSite(AdminSite):
     index_title: str = "Pymap administration"
 
     def get_urls(self) -> List[Union[URLPattern, URLResolver]]:
+        """
+        Returns the list of URL patterns for the custom admin site, including additional
+        commands for task management.
+        
+        The returned list includes both the default admin URLs and custom endpoints for
+        rendering the commands page, fetching running tasks, and dispatching Celery task
+        operations such as validating finished tasks and purging results.
+        """
         urls = super().get_urls()
         custom_urls: list[URLResolver | URLPattern] = [
             path("commands/", self.admin_view(self.task_view), name="commands"),
@@ -161,6 +169,11 @@ class CustomAdminSite(AdminSite):
         return custom_urls + urls
 
     def fetch_running_tasks(self, request: HttpRequest) -> JsonResponse:
+        """
+        Returns a JSON response with the list of currently running Celery tasks.
+        
+        If an error occurs while retrieving the tasks, returns a JSON response with error details and a 400 status code.
+        """
         logger.debug("Fetch Running Tasks")
         try:
             tasks = get_running_tasks()
@@ -172,6 +185,12 @@ class CustomAdminSite(AdminSite):
             )
 
     def validate_finished(self, request: HttpRequest) -> JsonResponse:
+        """
+        Queues the Celery task to validate finished tasks and returns a JSON response.
+        
+        Returns:
+            JsonResponse: A response indicating the task was queued, or an error message with status 500 if dispatch fails.
+        """
         try:
             validate_finished.delay()
             return JsonResponse({"status": "queued"})
@@ -180,6 +199,12 @@ class CustomAdminSite(AdminSite):
             return JsonResponse({"error": str(e)}, status=500)
 
     def purge_results(self, request: HttpRequest) -> JsonResponse:
+        """
+        Queues the Celery task to purge finished task results and returns a JSON response.
+        
+        If the task is successfully queued, returns a JSON object with status "queued".
+        If an error occurs, returns a JSON object with the error message and HTTP 500 status.
+        """
         try:
             purge_results.delay(1, 0, 0, finished_field="true")
             return JsonResponse({"status": "queued"})
@@ -188,6 +213,12 @@ class CustomAdminSite(AdminSite):
             return JsonResponse({"error": str(e)}, status=500)
 
     def task_view(self, request: HttpRequest) -> (TemplateResponse):
+        """
+        Renders the admin commands page template.
+        
+        Returns:
+            TemplateResponse: The rendered 'admin/commands.html' page with admin context.
+        """
         context = dict(
             self.each_context(request),
         )

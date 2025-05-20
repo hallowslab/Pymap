@@ -33,6 +33,11 @@ class PreferencesForm(forms.ModelForm):
         fields = ["host_patterns"]
 
     def clean_host_patterns(self) -> Optional[List[List[str]]]:
+        """
+        Validates and cleans the 'host_patterns' field by parsing its JSON input and removing whitespace.
+        
+        Attempts to parse the 'host_patterns' field as a JSON-encoded list of lists of strings, strips all whitespace from each pattern, and returns the cleaned nested list. Raises a ValidationError if the input is not valid JSON. Returns None if no patterns are provided.
+        """
         patterns = self.data.get("host_patterns")
         try:
             if patterns:

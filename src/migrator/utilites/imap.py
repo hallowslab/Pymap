@@ -13,6 +13,18 @@ class IMAPConfig(TypedDict):
 
 
 def check_imap_id_support(host: str, timeout: int = 5) -> bool:
+    """
+    Checks if an IMAP server supports the IMAP ID extension.
+    
+    Attempts to connect to the specified host using both IMAP over SSL (port 993) and plain IMAP (port 143), retrieves the server's capabilities, and returns True if the "ID" capability is advertised.
+    
+    Args:
+        host: The hostname or IP address of the IMAP server.
+        timeout: Connection timeout in seconds (default is 5).
+    
+    Returns:
+        True if the server supports the IMAP ID extension, False otherwise.
+    """
     configs: List[IMAPConfig] = [
         {"function": IMAP4_SSL, "port": 993},
         {"function": IMAP4, "port": 143},

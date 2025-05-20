@@ -27,6 +27,23 @@ class ScriptGenerator:
         extra_args: str = "",
         **kwargs: Any,
     ) -> None:
+        """
+        Initializes a ScriptGenerator instance for generating synchronization scripts.
+        
+        Args:
+            host1: The source host name or address.
+            host2: The destination host name or address.
+            extra_args: Additional arguments to append to generated commands.
+            **kwargs: Optional configuration parameters, including:
+                - config: Dictionary of configuration options.
+                - additional_known_hosts: List of additional known host patterns.
+                - destination: Output filename prefix.
+                - split: Number of lines per output file.
+                - dry_run: If True, disables file writing.
+                - pymap_logdir: Directory for log files.
+        
+        The constructor verifies hostnames, sets up output and logging parameters, and prepares internal state for script generation.
+        """
         self.config = kwargs.get("config", {})
         self.additional_known_hosts: Optional[List[List[str]]] = kwargs.get(
             "additional_known_hosts", None
@@ -62,9 +79,9 @@ class ScriptGenerator:
 
     def find_domains(self, line: str) -> None:
         """
-        Splits a line by spaces and tries to match domains, this is needed in case
-        the input is USER1@DOMAIN1 PASS1 USER2@DOMAIN2 PASS2 and DOMAIN1 != DOMAIN2
-        when synchronizing accounts from one domain to a different one
+        Extracts and tracks unique domains found in a line of input.
+        
+        Splits the input line by spaces, attempts to extract a domain from each part, and adds any new domains to the internal list. This supports scenarios where user credentials from different domains are present in the same line.
         """
         parts = line.split(" ")
         for part in parts:
@@ -76,6 +93,11 @@ class ScriptGenerator:
                 )
 
     def get_known_hosts(self) -> Optional[List[List[str]]]:
+        """
+        Returns the list of known host patterns for host verification.
+        
+        If additional known hosts are provided, returns them; otherwise, returns the hosts from the configuration.
+        """
         config_hosts: Optional[List[List[str]]] = self.config.get("HOSTS", [])
         if self.additional_known_hosts:
             return self.additional_known_hosts
@@ -83,8 +105,9 @@ class ScriptGenerator:
 
     def process_file(self, fpath: str) -> None:
         """
-        Reads a file line by line, creates the script for each line and then outputs to a file,
-        creating a new file each time the counter is reached
+        Processes an input file, generating and writing script lines to output files in batches.
+        
+        Reads each line from the specified file, generates corresponding script lines, and writes them to output files. A new output file is created each time the number of processed lines reaches the configured batch size. Raises a ValueError if the file path is invalid.
         """
         if fpath != "" and os.path.isfile(fpath):
             try:
@@ -115,10 +138,9 @@ class ScriptGenerator:
     # processes input -> yields str
     def line_generator(self, uinput: Iterable[str]) -> Generator[str, None, None]:
         """
-        Just a generator wrapper for the process_line function,
-        also appends <self.extra_args> if they exist
-
-        Entrypoint for the data, other functions like process_strings and process_file should always call this
+        Generates script lines from input strings using process_line, appending extra arguments if set.
+        
+        Iterates over each non-empty input line, extracts and tracks domains, processes the line into a script command, and yields the result with any additional arguments appended.
         """
         new_line: Optional[str] = ""
         for line in uinput:
