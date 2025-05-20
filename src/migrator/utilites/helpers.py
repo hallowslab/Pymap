@@ -110,6 +110,11 @@ def get_logs_status(
 ) -> Dict[str, str]:
     # FIXME: This might have some issues on directories with a large amount of files
     # TODO: Maybe stop using so many regular expressions and just use grep awk and whatever.....
+    """
+    Aggregates status information for a log file, including start time, end time, and status.
+    
+    Combines subprocess-based parsing functions to extract and summarize key details from the specified log file. Returns a dictionary containing the log file name, transfer start time, end time, and a human-readable status message.
+    """
     full_path = join(log_directory, log_path)
     status_message = get_status(full_path, timeout)
     start_time = get_start_time(full_path, timeout)
