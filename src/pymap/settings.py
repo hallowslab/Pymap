@@ -119,7 +119,7 @@ DATABASES = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379",
+        "LOCATION": "redis://redis:6379/0",
     }
 }
 CACHE_MIDDLEWARE_SECONDS = 3600
@@ -180,8 +180,8 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "sync/"
 
 # Celery configuration
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+CELERY_BROKER_URL = "redis://redis:6379/1"
+CELERY_RESULT_BACKEND = "redis://redis:6379/2"
 CELERY_TIMEZONE = "Europe/Lisbon"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -379,8 +379,9 @@ def verify_secret_key() -> None:
         print(f"Generated new secret key {SECRET_KEY}")
 
 
-# Load custom settings, secret file, and env variables
-load_settings_file()
+# Load custom settings, secret file, and env variables, if not testing
+if not TESTING:
+    load_settings_file()
 # We only try to load .secret during production to ease development
 if DJANGO_ENV == "production":
     load_key_file()
