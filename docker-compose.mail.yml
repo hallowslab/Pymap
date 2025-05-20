@@ -28,6 +28,8 @@ services:
         - SMTP_PORT=2526
         - SMTP_SUBMISSION=5878
         - IMAP_PORT=1434
+    environment:
+      - GENERATE_MESSAGES=false
     container_name: m2
     hostname: vps.pymap.lan
     domainname: vps.pymap.lan
@@ -65,11 +67,6 @@ services:
       - 8082:80
     volumes:
       - roundcube_mail2:/var/www/html
-
-
-# networks:
-#   mailnet:
-#     driver: bridge
 
 volumes:
   roundcube_mail:

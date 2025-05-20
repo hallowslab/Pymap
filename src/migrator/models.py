@@ -2,7 +2,7 @@
 import os
 import shutil
 import logging
-from typing import Any
+from typing import Any, List
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -28,13 +28,28 @@ logger = logging.getLogger(__name__)
 #         return f"Global Task Statistics"
 
 
+def host_patterns_default() -> List[List[str]]:
+    """
+    Returns the default host pattern list for user preferences.
+    
+    Returns:
+        A list containing a single host pattern and domain suffix pair.
+    """
+    return [["^(vm[0-9]*|vps)$", ".example.com"]]
+
+
 class UserPreferences(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    host_patterns = models.JSONField(
-        default=lambda: [["^(vm[0-9]*|vps)$", ".example.com"]]
-    )
+    # Django cannot serialize:
+    # Nested classes
+    # Arbitrary class instances (e.g. MyClass(4.3, 5.7))
+    # Lambdas
+    host_patterns = models.JSONField(default=host_patterns_default)
 
     def __str__(self) -> str:
+        """
+        Returns a string representation of the user preferences, including the associated username.
+        """
         return f"{self.user.username}'s Preferences"
 
 
@@ -54,6 +69,7 @@ class CeleryTask(models.Model):
     finished = models.BooleanField(default=False)
     terminated = models.BooleanField(default=False)
     start_time = models.DateTimeField(auto_now_add=True, blank=True)
+    custom_label = models.CharField(default="", max_length=255)
     # end_time = models.DateTimeField(default=0,blank=True)
     results_purged = models.BooleanField(default=False)
     run_time = models.IntegerField(default=0)

@@ -34,12 +34,7 @@ from django_celery_beat.admin import (
 )
 
 from .models import CeleryTask, UserPreferences
-from .tasks import (
-    purge_results,
-    validate_finished,
-    get_running_tasks,
-    long_running_test_task,
-)
+from .tasks import purge_results, validate_finished, get_running_tasks
 from pymap import celery_app
 
 logger = logging.getLogger(__name__)
@@ -143,19 +138,42 @@ class CustomAdminSite(AdminSite):
     index_title: str = "Pymap administration"
 
     def get_urls(self) -> List[Union[URLPattern, URLResolver]]:
+        """
+        Returns the list of URL patterns for the custom admin site, including additional
+        commands for task management.
+        
+        The returned list includes both the default admin URLs and custom endpoints for
+        rendering the commands page, fetching running tasks, and dispatching Celery task
+        operations such as validating finished tasks and purging results.
+        """
         urls = super().get_urls()
         custom_urls: list[URLResolver | URLPattern] = [
-            path("tasks/", self.admin_view(self.task_view), name="tasks"),
+            path("commands/", self.admin_view(self.task_view), name="commands"),
             path(
-                "tasks/running-tasks",
+                "commands/running-tasks",
                 self.admin_view(self.fetch_running_tasks),
                 name="running-tasks",
+            ),
+            path(
+                "commands/validate-finished",
+                self.admin_view(self.validate_finished),
+                name="validate-finished",
+            ),
+            path(
+                "commands/purge-results",
+                self.admin_view(self.purge_results),
+                name="purge-results",
             ),
         ]
         logger.debug("Custom admin loaded URLS: %s", custom_urls + urls)
         return custom_urls + urls
 
     def fetch_running_tasks(self, request: HttpRequest) -> JsonResponse:
+        """
+        Returns a JSON response with the list of currently running Celery tasks.
+        
+        If an error occurs while retrieving the tasks, returns a JSON response with error details and a 400 status code.
+        """
         logger.debug("Fetch Running Tasks")
         try:
             tasks = get_running_tasks()
@@ -166,21 +184,45 @@ class CustomAdminSite(AdminSite):
                 {"error": "DJANGO:Unhandled exception", "data": e.__str__()}, status=400
             )
 
-    def task_view(
-        self, request: HttpRequest
-    ) -> (TemplateResponse | HttpResponseRedirect | HttpResponsePermanentRedirect):
-        if request.method == "POST":
-            if "purge_results" in request.POST:
-                purge_results.delay()
-            elif "validate_finished" in request.POST:
-                validate_finished.delay()
-            elif "long_running_test_task" in request.POST:
-                long_running_test_task.delay()
-            return redirect("admin:tasks")
+    def validate_finished(self, request: HttpRequest) -> JsonResponse:
+        """
+        Queues the Celery task to validate finished tasks and returns a JSON response.
+        
+        Returns:
+            JsonResponse: A response indicating the task was queued, or an error message with status 500 if dispatch fails.
+        """
+        try:
+            validate_finished.delay()
+            return JsonResponse({"status": "queued"})
+        except Exception as e:
+            logger.exception("Error in validate_finished")
+            return JsonResponse({"error": str(e)}, status=500)
+
+    def purge_results(self, request: HttpRequest) -> JsonResponse:
+        """
+        Queues the Celery task to purge finished task results and returns a JSON response.
+        
+        If the task is successfully queued, returns a JSON object with status "queued".
+        If an error occurs, returns a JSON object with the error message and HTTP 500 status.
+        """
+        try:
+            purge_results.delay(1, 0, 0, finished_field="true")
+            return JsonResponse({"status": "queued"})
+        except Exception as e:
+            logger.exception("Error in purge_results")
+            return JsonResponse({"error": str(e)}, status=500)
+
+    def task_view(self, request: HttpRequest) -> (TemplateResponse):
+        """
+        Renders the admin commands page template.
+        
+        Returns:
+            TemplateResponse: The rendered 'admin/commands.html' page with admin context.
+        """
         context = dict(
             self.each_context(request),
         )
-        return TemplateResponse(request, "admin/tasks.html", context)
+        return TemplateResponse(request, "admin/commands.html", context)
 
 
 custom_admin_site = CustomAdminSite(name="admin")

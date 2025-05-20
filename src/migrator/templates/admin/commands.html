@@ -1,0 +1,53 @@
+<!-- templates/admin/tasks.html -->
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Admin Commands</h1>
+    <div style="margin: 1em;">
+        <button class="button" name="run-command" id="run-command" style="margin-right: 1em;">
+            Run command
+        </button>
+        <select name="admin-commands" id="admin-commands">
+            <option value="running-tasks">Check running tasks</option>
+            <option value="validate-finished-tasks">Validate finished tasks</option>
+            <option value="purge-old-results">Purge old results</option>
+        </select>
+    </div>
+    <div>
+        <textarea id="command-output" rows="10" cols="80" readonly></textarea>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("run-command").addEventListener("click", () => {
+            const selected = document.getElementById("admin-commands").value;
+
+            const endpoints = {
+                "running-tasks": "{% url 'admin:running-tasks' %}",
+                "validate-finished-tasks": "{% url 'admin:validate-finished' %}",
+                "purge-old-results": "{% url 'admin:purge-results' %}",
+            };
+
+            const textArea = document.getElementById("command-output");
+
+            fetch(endpoints[selected], {
+                method: "GET",  // or POST if you want to change it
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    console.log(data);
+                    textArea.value = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    console.error("Request failed", error);
+                    textArea.value = `Error: ${error}`;
+                });
+        });
+    })
+</script>
+{% endblock %}

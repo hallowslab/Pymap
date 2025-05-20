@@ -1,9 +1,10 @@
 import logging
-import argparse
 import json
+import re
+from argparse import Namespace, ArgumentParser
+from typing import Any, List, Optional
 
-from argparse import Namespace
-from typing import Any
+logger = logging.getLogger("pymap_core.utils")
 
 
 # Try to parse log level, default to 20/INFO
@@ -31,7 +32,13 @@ def load_config(f_path: str = "config.json") -> Any:
 
 
 def setup_argparse() -> Namespace:
-    parser = argparse.ArgumentParser(
+    """
+    Parses command-line arguments for the imapsync script generation tool.
+    
+    Returns:
+        Namespace: An object containing parsed command-line arguments, including hostnames, credentials file path, optional domain, output destination, split size, log level, configuration file path, and dry-run flag.
+    """
+    parser = ArgumentParser(
         description="Processes a file, outputs a script for imapsync",
         prog="pymap",
         epilog="The end",
@@ -82,3 +89,28 @@ def setup_argparse() -> Namespace:
     )
     args = parser.parse_args()
     return args
+
+
+def verify_host(hostname: str, known_hosts: Optional[List[List[str]]] = None) -> str:
+    """
+    Checks if a hostname matches any regex pattern in a list and appends a string if matched.
+    
+    If the hostname matches a pattern in the provided known_hosts list, returns the hostname
+    concatenated with the corresponding append string. If no patterns match or known_hosts is
+    not provided, returns the original hostname.
+    """
+    logger.debug("Verifying hostname: %s", hostname)
+
+    if known_hosts:
+        for pattern, append_str in known_hosts:
+            try:
+                has_match = re.match(pattern, hostname)
+                if has_match:
+                    logger.debug("Matched hostname pattern: %s", pattern)
+                    return f"{hostname}{append_str}"
+            except Exception as e:
+                logger.warning("Regex error in pattern %s: %s", pattern, e)
+                continue
+
+    logger.debug("No matches found for hostname: %s", hostname)
+    return hostname

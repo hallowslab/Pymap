@@ -31,6 +31,10 @@ SECRET_KEY = None
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG: bool = True if DJANGO_ENV == "development" else False
 
+# Checks django is running in test mode
+TESTING = "test" in sys.argv
+
+
 if DEBUG:
     # We use print logging is not yet configured
     print(
@@ -47,6 +51,7 @@ CSRF_TRUSTED_ORIGINS: List[str] = []
 INTERNAL_IPS: List[str] = [
     # ...
     "127.0.0.1",
+    "172.17.0.1",
     # ...
 ]
 
@@ -63,7 +68,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_celery_beat",
-] + (["debug_toolbar"] if DEBUG else [])
+]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -76,7 +81,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "migrator.middleware.require_auth.staff_only",
     "django.middleware.cache.FetchFromCacheMiddleware",
-] + (["debug_toolbar.middleware.DebugToolbarMiddleware"] if DEBUG else [])
+]
 
 ROOT_URLCONF = "pymap.urls"
 
@@ -384,3 +389,35 @@ load_settings_env()
 check_log_directory()
 # Check the SECRET_KEY during startup
 verify_secret_key()
+
+# Set the same secret key for debug and testing
+if DEBUG:
+    SECRET_KEY = "!!DEBUG_KEY!!"
+
+# Only enable the toolbar when we're in debug mode and we're
+# not running tests. Django will change DEBUG to be False for
+# tests, so we can't rely on DEBUG alone.
+ENABLE_DEBUG_TOOLBAR = DEBUG and not TESTING
+if ENABLE_DEBUG_TOOLBAR:
+    import socket
+
+    print("Enabling debug toolbar")
+    INSTALLED_APPS += [
+        "debug_toolbar",
+    ]
+    MIDDLEWARE += [
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+    ]
+    DEBUG_TOOLBAR_CONFIG = {
+        "DISABLE_PANELS": [
+            "debug_toolbar.panels.redirects.RedirectsPanel",
+            # Disable profiling panel due to an issue with Python 3.12:
+            # https://github.com/jazzband/django-debug-toolbar/issues/1875
+            "debug_toolbar.panels.profiling.ProfilingPanel",
+        ],
+        "SHOW_TEMPLATE_CONTEXT": True,
+    }
+
+    # Discovering docker address
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS += [".".join(ip.split(".")[:-1] + ["1"]) for ip in ips]

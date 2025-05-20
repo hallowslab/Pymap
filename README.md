@@ -1,3 +1,5 @@
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/hallowslab/Pymap?utm_source=oss&utm_medium=github&utm_campaign=hallowslab%2FPymap&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 # Requirements
 
 ## System
@@ -50,7 +52,7 @@ This setup focus on running the app natively on a linux environment, the app sho
 `git clone https://github.com/hallowslab/Pymap.git`
 - Create a .env file in the project's root directory where the file .env.template is located, you can duplicate it and modify accordingly
 - Create a config file in `pymap/src/config.json`, You can copy it from the existing templates config*-template.json and modify the settings accordingly, more info in [Addtional Info - Config File](#config-file)
-- From the project's root where the file docker-compose.yml is located, run the command `ocker compose --env-file .env -f docker-compose.yml build` to build the containers and then `docker compose up -d` to start them in the background, or in a single command `ocker compose --env-file .env -f docker-compose.yml up --build -d`
+- From the project's root where the file docker-compose.yml is located, run the command `docker compose --env-file .env -f docker-compose.yml build` to build the containers and then `docker compose up -d` to start them in the background, or in a single command `docker compose --env-file .env -f docker-compose.yml up --build -d`
 
 To remove containers/volumes and images:
 

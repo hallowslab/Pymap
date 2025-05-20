@@ -19,7 +19,7 @@ from django_celery_results.models import TaskResult
 from migrator.models import CeleryTask
 from pymap import celery_app
 
-logger = get_task_logger("CeleryTask")
+logger = get_task_logger(__name__)
 
 FProc = Dict[str, (str | int)]
 RProc = Dict[str, Any]
@@ -29,6 +29,15 @@ CALL_SYSTEM_TYPE = Dict[str, (str | FProc)]
 def should_terminate_task(task_id: str) -> bool:
     # Implement logic to check if the task should terminate
     # For example, check a value in the database or cache
+    """
+    Checks if a task with the given ID has been marked for termination.
+    
+    Args:
+        task_id: The unique identifier of the Celery task.
+    
+    Returns:
+        True if the task's 'terminated' flag is set; otherwise, False.
+    """
     task = CeleryTask.objects.filter(task_id=task_id).first()
     if task:
         if task.terminated:
@@ -36,9 +45,15 @@ def should_terminate_task(task_id: str) -> bool:
     return False
 
 
-def get_running_tasks() -> Dict[str, Dict[object, object]]:
+def get_running_tasks() -> Dict[str, Dict[str, list]]:
+    """
+    Retrieves and categorizes currently running Celery tasks by worker and state.
+    
+    Returns:
+        A dictionary mapping task states ('active', 'reserved', 'scheduled') to worker names and lists of task descriptions in the format 'name :: id'.
+    """
     inspector = Inspect(app=celery_app)
-    all_tasks: Dict[str, Dict[object, object]] = {
+    all_tasks: Dict[str, Dict[str, list]] = {
         "active": {},
         "reserved": {},
         "scheduled": {},
@@ -49,37 +64,47 @@ def get_running_tasks() -> Dict[str, Dict[object, object]]:
     logger.debug(f"ACTIVE TASKS: {active_tasks}")
     if active_tasks:
         for worker, tasks in active_tasks.items():
-            all_tasks["active"][worker] = [
-                f"{task['name']} :: {task['id']}" for task in tasks
-            ]
+            if worker not in all_tasks["active"]:
+                all_tasks["active"][worker] = []
+            for task in tasks:
+                if "name" in task:
+                    all_tasks["active"][worker].append(
+                        f"{task['name']} :: {task['id']}"
+                    )
+                else:
+                    logger.warning("Task is missing 'name' key: %s", task)
 
     # Check reserved tasks
     reserved_tasks = inspector.reserved()
     logger.debug(f"RESERVED TASKS: {reserved_tasks}")
     if reserved_tasks:
         for worker, tasks in reserved_tasks.items():
-            all_tasks["reserved"][worker] = [
-                f"{task['name']} :: {task['id']}" for task in tasks
-            ]
+            if worker not in all_tasks["reserved"]:
+                all_tasks["reserved"][worker] = []
+            for task in tasks:
+                if "name" in task:
+                    all_tasks["reserved"][worker].append(
+                        f"{task['name']} :: {task['id']}"
+                    )
+                else:
+                    logger.warning("Task is missing 'name' key: %s", task)
 
     # Check scheduled tasks
     scheduled_tasks = inspector.scheduled()
     logger.debug(f"SCHEDULED TASKS: {scheduled_tasks}")
     if scheduled_tasks:
         for worker, tasks in scheduled_tasks.items():
-            all_tasks["scheduled"][worker] = [
-                f"{task['name']} :: {task['id']}" for task in tasks
-            ]
+            if worker not in all_tasks["scheduled"]:
+                all_tasks["scheduled"][worker] = []
+            for task in tasks:
+                if "name" in task["request"]:
+                    all_tasks["scheduled"][worker].append(
+                        f"{task['request']['name']} :: {task['request']['id']}"
+                    )
+                else:
+                    logger.warning("Task is missing 'name' key: %s", task)
 
     return all_tasks
-
-
-@shared_task
-def long_running_test_task(timeout: int = 100, wait_timer: int = 5) -> None:
-    ltime = timeout
-    while ltime > 0:
-        time.sleep(wait_timer)
-        ltime = ltime - wait_timer
 
 
 @shared_task(bind=True)
@@ -89,6 +114,17 @@ def call_system(self, cmd_list: Optional[List[str]]) -> CALL_SYSTEM_TYPE:
     # It also is Optional to avoid type errors on the next statement
     # Was implemented due to retry task since the stored data is a string
     # and we need to parse it back to python
+    """
+    Executes a list of shell commands concurrently with a maximum of 5 parallel subprocesses.
+    
+    Each command is run in its own subprocess, with output suppressed and log directory paths adjusted per task. The function periodically updates task progress, manages process concurrency, and checks for external termination requests. Upon completion, it records the total runtime and marks the task as finished in the database.
+    
+    Args:
+        cmd_list: List of shell command strings to execute.
+    
+    Returns:
+        A dictionary containing the overall status and the return codes of each subprocess.
+    """
     if not isinstance(cmd_list, list):
         logger.critical(f"Expected cmd_list to be a list, got {type(cmd_list)}")
         self.update_state(
@@ -403,24 +439,43 @@ def validate_finished() -> None:
 # This will be used to automate the archival of tasks by a certain date,
 # It should not be pre-configured and the admin must create a periodic task
 @shared_task
-def archive_older_than(
+def modify_older_than(
+    mode: str = "a",
     weeks: int = int("4"),
     days: int = int("0"),
     hours: int = int("0"),
     minutes: int = int("0"),
 ) -> None:
+    """
+    Archives or deletes finished CeleryTask entries older than a specified time period.
+    
+    Args:
+        mode: Operation mode; "a" to archive tasks, "d" to delete them.
+        weeks: Number of weeks to include in the age threshold.
+        days: Number of days to include in the age threshold.
+        hours: Number of hours to include in the age threshold.
+        minutes: Number of minutes to include in the age threshold.
+    
+    Tasks that finished before the computed cutoff date are either marked as archived or deleted, depending on the mode. If invalid time values are provided, the operation is aborted.
+    """
     td = timedelta(weeks=4, days=0, hours=0, minutes=0)
     try:
-        td = timedelta(weeks=weeks, days=days, hours=hours, minutes=minutes)
+        td = timedelta(
+            weeks=int(weeks), days=int(days), hours=int(hours), minutes=int(minutes)
+        )
     except ValueError:
         logger.error(
-            "Invalid values passed to archive older tasks: Days %s, Hours %s, Minutes %s",
+            "Invalid values passed to modify older tasks: weeks %s Days %s, Hours %s, Minutes %s",
+            weeks,
             days,
             hours,
             minutes,
         )
-        # Here we actually don't continue we might not want to archive by the default values
+        # Here we actually don't continue we might not want to modify by the default values
         return
     cutoff_date = datetime.now() - td
     tasks = CeleryTask.objects.filter(start_time__lt=cutoff_date, finished=True)
-    tasks.update(archived=True)
+    if mode == "a":
+        tasks.update(archived=True)
+    elif mode == "d":
+        tasks.delete()

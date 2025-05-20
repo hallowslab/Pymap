@@ -26,6 +26,7 @@ class CeleryTaskSerializer(serializers.ModelSerializer[CeleryTask]):
             "finished",
             "start_time",
             "run_time",
+            "custom_label",
             "owner",
         ]
 

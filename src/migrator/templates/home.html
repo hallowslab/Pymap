@@ -9,7 +9,8 @@
                 <li class="list-group-item text-center fs-5">Tasks</li>
                 <li class="list-group-item">Total number of tasks: {{ total_tasks }}</li>
                 <li class="list-group-item">Number of accounts synced across all tasks: {{ total_n_accounts }}</li>
-                <li id="total_run_time" class="list-group-item">Sum of the run time of all tasks: {{ total_run_time }}</li>
+                <li id="total_run_time" class="list-group-item">Sum of the run time of all tasks: {{ total_run_time }}
+                </li>
                 <hr>
             </ul>
         </div>
@@ -26,19 +27,19 @@
     // https://stackoverflow.com/questions/36098913/convert-seconds-to-days-hours-minutes-and-seconds
     function secondsToDhms(seconds) {
         seconds = Number(seconds);
-        var d = Math.floor(seconds / (3600*24));
-        var h = Math.floor(seconds % (3600*24) / 3600);
+        var d = Math.floor(seconds / (3600 * 24));
+        var h = Math.floor(seconds % (3600 * 24) / 3600);
         var m = Math.floor(seconds % 3600 / 60);
         var s = Math.floor(seconds % 60);
-        
+
         var dDisplay = d > 0 ? d + (d == 1 ? " day, " : " days, ") : "";
         var hDisplay = h > 0 ? h + (h == 1 ? " hour, " : " hours, ") : "";
         var mDisplay = m > 0 ? m + (m == 1 ? " minute, " : " minutes, ") : "";
         var sDisplay = s > 0 ? s + (s == 1 ? " second" : " seconds") : "";
         return dDisplay + hDisplay + mDisplay + sDisplay;
     }
-    
-    $(document).ready(()=>{
+
+    $(document).ready(() => {
         el = document.getElementById("total_run_time");
         el.innerHTML = "Sum of the run time of all tasks: " + secondsToDhms("{{ total_run_time }}")
     })

@@ -110,7 +110,7 @@ COPY ./src/poetry.lock ./
 
 # Install dependecies trough poetry
 RUN poetry install $(if [ "$DJANGO_ENV" = 'production' ]; then echo '--only main'; fi) \
-    --no-interaction --no-ansi --sync
+    --no-interaction --no-ansi --sync --no-root
 
 # Copy the source code
 COPY ./src/ ./

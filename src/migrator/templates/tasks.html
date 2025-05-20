@@ -22,6 +22,7 @@
                 <th>Archived</th>
                 <th>Start time</th>
                 <th>Run time</th>
+                <th>Custom Identifier</th>
                 <th>Owner</th>
             </tr>
         </thead>
@@ -34,7 +35,7 @@
 <script>
     // Defined above all scopes so it can be accessed in other functions
     var tasksTable;
-    let showOwnedOnly = false;
+    let showOwnedOnly = true;
     function handleArchive(e,dt,node,config) {
         //e.disabled = true
         let selection = listSelected(dt);
@@ -191,7 +192,7 @@
                     },
                     buttons: [
                     {
-                        text: 'My tasks',
+                        text: 'Toggle All/User tasks',
                         action: handleShowOwnedOnly,
                         className: 'btn-info',
                         attr: {
@@ -271,6 +272,7 @@
                 {data: 'archived', width: '100px', "searchable": true},
                 {data: 'start_time', width: '70px', "searchable": true},
                 {data: 'run_time', width: '70px', "searchable": true},
+                {data: 'custom_label', width: '70px', "searchable": true},
                 {data: 'owner.username', width: '100px', "searchable": true}
                 ],
                 select: {

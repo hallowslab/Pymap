@@ -2,6 +2,7 @@ from typing import Dict, Union
 import pytest
 from unittest.mock import patch, mock_open, call
 from core.pymap_core import ScriptGenerator
+from core.utils import verify_host
 
 config_type = Dict[str, Union[list[list[str]], str]]
 
@@ -139,6 +140,11 @@ def test_process_strings(mock_generator: ScriptGenerator) -> None:
 def test_write_output(
     mock_generator: ScriptGenerator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """
+    Tests that the write_output method writes script strings to a file as expected.
+    
+    Verifies that the output file is opened in write mode and that each script string is written with a newline appended.
+    """
     mock_open_func = mock_open()
     monkeypatch.setattr("builtins.open", mock_open_func)
 
@@ -152,15 +158,17 @@ def test_write_output(
     mock_open_func().writelines.assert_called_once_with(expected_lines)
 
 
-def test_verify_matches_hosts(mock_generator: ScriptGenerator) -> None:
-    mock_generator.config["HOSTS"] = [
+def test_verify_matches_hosts() -> None:
+    add_hosts = [
         ["^sv[0-9]{2}$", ".example.com"],
         ["^VPS[0-9]{0,1}$", ".example.dev"],
     ]
-    result1 = mock_generator.verify_host("sv00")
-    result2 = mock_generator.verify_host("VPS1")
-    result3 = mock_generator.verify_host("ABC123")
-    result4 = mock_generator.verify_host("VPS1000")
+
+    result1 = verify_host("sv00", add_hosts)
+    result2 = verify_host("VPS1", add_hosts)
+    result3 = verify_host("ABC123", add_hosts)
+    result4 = verify_host("VPS1000", add_hosts)
+
     assert result1 == "sv00.example.com"
     assert result2 == "VPS1.example.dev"
     assert result3 == "ABC123"

@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from typing import List, Optional
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
 from django.contrib.auth.models import User
@@ -31,7 +32,12 @@ class PreferencesForm(forms.ModelForm):
         model = UserPreferences
         fields = ["host_patterns"]
 
-    def clean_host_patterns(self):
+    def clean_host_patterns(self) -> Optional[List[List[str]]]:
+        """
+        Validates and cleans the 'host_patterns' field by parsing its JSON input and removing whitespace.
+        
+        Attempts to parse the 'host_patterns' field as a JSON-encoded list of lists of strings, strips all whitespace from each pattern, and returns the cleaned nested list. Raises a ValidationError if the input is not valid JSON. Returns None if no patterns are provided.
+        """
         patterns = self.data.get("host_patterns")
         try:
             if patterns:
@@ -48,10 +54,17 @@ class PreferencesForm(forms.ModelForm):
                 return cleaned_patterns
         except (ValueError, TypeError):
             raise forms.ValidationError("Invalid JSON format")
+        return None
 
 
 class SyncForm(forms.Form):
     credentials_placeholder = "Source@Account Password Destination@Account Password\ntest@email.com Password123 test@email.com Password123"
+    custom_label = forms.CharField(
+        label="Custom Identifier(Optional)",
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "..."}),
+        required=False,
+        initial="",
+    )
     source = forms.CharField(
         label="source",
         widget=forms.TextInput(

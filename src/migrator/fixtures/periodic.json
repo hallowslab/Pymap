@@ -38,5 +38,13 @@
             "every": 1,
             "period": "days"
         }
+    },
+    {
+        "model": "django_celery_beat.IntervalSchedule",
+        "pk": 6,
+        "fields": {
+            "every": 7,
+            "period": "days"
+        }
     }
 ]

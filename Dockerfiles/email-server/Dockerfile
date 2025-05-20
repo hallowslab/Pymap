@@ -9,7 +9,8 @@ ENV GENERATE_MESSAGES=${GENERATE_MESSAGES}
 
 # Install Postfix and Dovecot
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y postfix dovecot-core dovecot-imapd dovecot-pop3d net-tools telnet mailutils rsyslog
+    DEBIAN_FRONTEND=noninteractive apt-get install -y postfix dovecot-core dovecot-imapd dovecot-pop3d net-tools telnet \
+	mailutils rsyslog curl bzip2
 
 # Modify Postfix Configuration
 RUN sed -i "s/^myhostname.*/myhostname = ${HOSTNAME}/" /etc/postfix/main.cf && \
@@ -47,8 +48,6 @@ RUN chmod 640 /var/log/dovecot.log
 RUN chown dovecot:dovecot /var/log/dovecot.log
 
 COPY init.sh init.sh
-COPY bodies.list bodies.txt
-COPY subjects.list subjects.txt
 COPY generate_messages.sh generate_messages.sh
 
 CMD ["sh", "-c", "./init.sh"]
