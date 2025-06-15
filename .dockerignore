@@ -33,4 +33,4 @@ include/
 
 # Others
 pymap_logs/
-.secret
+secrets/

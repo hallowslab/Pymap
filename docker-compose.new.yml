@@ -1,0 +1,189 @@
+x-secrets-volumes: &secrets_volumes
+  - type: bind
+    source: ./secrets/.secret
+    target: /run/secrets/.secret
+    read_only: true
+  - type: bind
+    source: ./secrets/.pgpass
+    target: /run/secrets/.pgpass
+    read_only: true
+  - type: bind
+    source: ./secrets/.pg_service.conf
+    target: /run/secrets/.pg_service.conf
+    read_only: true
+    
+services:
+  # ---------- Cache|MessageBroker ----------
+  redis:
+    image: "docker.io/library/redis:latest"
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # ---------- DB ----------
+  postgres:
+    image: "docker.io/library/postgres:latest"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pymap}
+      POSTGRES_USER: ${POSTGRES_USER:-pymap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: ${POSTGRES_HOST:-127.0.0.1}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # ---------- NGINX ----------
+  nginx:
+    build: 
+      context: Dockerfiles/nginx
+      args:
+        - STATIC_ROOT
+        - GROUPNAME
+        - GID
+        - PYMAP_HOSTNAME
+    ports:
+      - "5001:80"
+      - "5000:443"
+    depends_on:
+      pymap:
+        condition: service_healthy
+    volumes:
+      - static_root:$STATIC_ROOT
+
+  # ---------- pymap ----------
+  pymap:
+    build:
+      context: .
+      dockerfile: Dockerfiles/base/Dockerfile
+      target: django
+      args:
+        - DJANGO_ENV
+        - DJANGO_SETTINGS_MODULE
+        - CELERY_BROKER_URL
+        - CELERY_RESULT_BACKEND
+        - STATIC_ROOT
+        - PYMAP_LOGDIR
+        - PYMAP_HOSTNAME
+        - GROUPNAME
+        - GID
+    # command: ["tail", "-f", "/dev/null"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail 127.0.0.1:8000/ || exit 1"]
+      interval: 15s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    ports:
+      - 8000:8000
+    depends_on:
+      - postgres
+      - redis
+      - celery-worker
+    volumes:
+      - shared_logs:$PYMAP_LOGDIR
+      - static_root:$STATIC_ROOT
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    user: "1001:$GID"  # UID:GID for user
+    group_add:
+      - $GROUPNAME
+
+  # ---------- celery worker ----------
+  celery-worker:
+    &celery_base
+    build:
+      context: .
+      dockerfile: Dockerfiles/base/Dockerfile
+      target: celery-worker
+      args:
+        - DJANGO_ENV
+        - DJANGO_SETTINGS_MODULE
+        - CELERY_BROKER_URL
+        - CELERY_RESULT_BACKEND
+        - STATIC_ROOT
+        - PYMAP_LOGDIR
+        - PYMAP_HOSTNAME
+        - GROUPNAME
+        - GID
+    ports: []
+    volumes:
+      - shared_logs:$PYMAP_LOGDIR
+      - static_root:$STATIC_ROOT
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    deploy:
+      mode: replicated
+      replicas: ${WORKER_REPLICAS:-1}
+    entrypoint: > 
+      /bin/sh -c "
+        bash /home/celery/copy_secrets.sh &&
+        sleep 5 && poetry run celery -A pymap.celery worker -l ${WORKER_LOG_LEVEL:-INFO} --concurrency=500 --pool=gevent
+      "
+    depends_on:
+      redis:
+        condition: service_started
+
+
+  # ---------- celery beat ----------
+  celery-beat:
+    <<: *celery_base
+    ports: []
+    volumes:
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    deploy:
+      mode: global
+    entrypoint: >
+      /bin/sh -c "
+        bash /home/celery/copy_secrets.sh &&
+        sleep 10 &&
+        poetry run celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log
+      "
+    depends_on:
+      - celery-worker
+
+
+  # ---------- flower ----------
+  celery-flower:
+    <<: *celery_base
+    ports: ["5555:5555"]
+    volumes:
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    deploy:
+      mode: global
+    command: >
+      /bin/sh -c "
+        bash /home/pymap/copy_secrets.sh &&
+        poetry run celery -A pymap.celery flower
+          --basic-auth='${FLOWER_ADMIN}:${FLOWER_PASSWORD}'
+          --address=0.0.0.0
+      "
+    profiles: ["flower"]
+
+
+### DEV
+# ---------- builder ----------
+  # base:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfiles/base/Dockerfile
+  #     target: base
+  #   ports: []
+  #   command: ["tail", "-f", "/dev/null"]
+
+
+volumes:
+  shared_logs:
+  pgdata:
+  static_root:

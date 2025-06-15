@@ -10,6 +10,10 @@ services:
     # Overrides default command so things don't shut down after the process ends.
     command: /bin/sh -c "while sleep 1000; do :; done"
 
+  postgres:
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
   pymap:
     ports:
       - 9000:9000
@@ -21,5 +25,10 @@ services:
     command: /bin/sh -c "while sleep 1000; do :; done"
     volumes:
       - ./src:/home/pymap/app  # Mount the src directory into the container
-      - shared_logs:$PYMAP_LOGDIR
-      - static_root:$STATIC_ROOT
+      - shared_logs_dev:$PYMAP_LOGDIR
+      - static_root_dev:$STATIC_ROOT
+
+volumes:
+  shared_logs_dev:
+  pgdata_dev:
+  static_root_dev:
