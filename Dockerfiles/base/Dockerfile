@@ -98,6 +98,7 @@ ARG DJANGO_ENV \
     CELERY_RESULT_BACKEND \
     STATIC_ROOT \
     PYMAP_LOGDIR \
+    PYMAP_HOSTNAME \
     PYMAP_ADMIN_USER \
     GROUPNAME \
     GID
@@ -111,8 +112,13 @@ ENV PYTHONFAULTHANDLER=1 \
     POETRY_VIRTUALENVS_PREFER_ACTIVE_PYTHON=true \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_HOME='/opt/pypoetry' \
-    # Django
-    DJANGO_ENV=${DJANGO_ENV}
+    # APP
+    DJANGO_ENV=${DJANGO_ENV} \
+    DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} \
+    CELERY_BROKER_URL=${CELERY_BROKER_URL} \
+    CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND} \
+    STATIC_ROOT=${STATIC_ROOT} \
+    PYMAP_HOSTNAME=${PYMAP_HOSTNAME}
 
 # create user+group
 RUN addgroup --gid $GID $GROUPNAME \
@@ -179,15 +185,20 @@ ARG DJANGO_ENV \
     DJANGO_SETTINGS_MODULE \
     CELERY_BROKER_URL \
     CELERY_RESULT_BACKEND \
+    STATIC_ROOT \
     PYMAP_LOGDIR \
+    PYMAP_HOSTNAME \
     GROUPNAME \
     GID
 
-ENV DJANGO_ENV=${DJANGO_ENV} \
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true \
+    # APP
+    DJANGO_ENV=${DJANGO_ENV} \
     DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} \
     CELERY_BROKER_URL=${CELERY_BROKER_URL} \
     CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND} \
-    POETRY_VIRTUALENVS_IN_PROJECT=true
+    STATIC_ROOT=${STATIC_ROOT} \
+    PYMAP_HOSTNAME=${PYMAP_HOSTNAME}
 
 
 # Create user and group
@@ -218,13 +229,9 @@ ENV PATH="/home/celery/.local/bin:$PATH"
 # Copy the copy_secrets file
 COPY Dockerfiles/base/copy_secrets.sh /home/celery/copy_secrets.sh
 
-# Copy the project files
-COPY ./src/pyproject.toml ./
-COPY ./src/poetry.lock ./
-
-# Install dependecies trough poetry
-RUN poetry install $(if [ "$DJANGO_ENV" = 'production' ]; then echo '--only main'; fi) \
-    --no-interaction --no-ansi --sync
+# copy virtualenv from build stage
+COPY --from=base /src/.venv /home/celery/app/.venv
+ENV PATH="/home/pymap/app/.venv/bin:$PATH"
 
 # Copy the source code
 COPY ./src/ ./

@@ -123,7 +123,8 @@ services:
     entrypoint: > 
       /bin/sh -c "
         bash /home/celery/copy_secrets.sh &&
-        sleep 5 && poetry run celery -A pymap.celery worker -l ${WORKER_LOG_LEVEL:-INFO} --concurrency=500 --pool=gevent
+        sleep 5 &&
+        /home/celery/app/.venv/bin/python -m celery -A pymap.celery worker -l ${WORKER_LOG_LEVEL:-INFO} --concurrency=500 --pool=gevent
       "
     depends_on:
       redis:
@@ -145,7 +146,7 @@ services:
       /bin/sh -c "
         bash /home/celery/copy_secrets.sh &&
         sleep 10 &&
-        poetry run celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log
+        /home/celery/app/.venv/bin/python -m celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log
       "
     depends_on:
       - celery-worker
