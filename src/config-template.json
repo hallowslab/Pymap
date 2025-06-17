@@ -5,6 +5,7 @@
   "HOSTS": [
     ["^(VPS|SV|SERVER)([0-9][0-9]|[0-4][0-9]{2})$",".example.com"]
   ],
+  "CELERY_BROKER_URL": "amqp://pymap:mypassword@rabbitmq-host:5672//",
   "DATABASES": {
     "default": {
       "ENGINE": "django.db.backends.postgresql",
@@ -17,7 +18,7 @@
   "CACHES": {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379"
+        "LOCATION": "redis://redis:6379/0"
     }
   },
   "CACHE_MIDDLEWARE_SECONDS": 3600,
