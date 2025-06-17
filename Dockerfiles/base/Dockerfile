@@ -1,5 +1,5 @@
 ############################
-# -- impasync build stage --
+# -- imapsync build stage --
 ############################
 FROM debian:bookworm AS imap-builder
 
@@ -31,7 +31,7 @@ RUN git clone https://github.com/imapsync/imapsync.git . && make install
 ############################
 # ---- base stage ----
 ############################
-FROM python:3.11 AS base
+FROM python:3.12-slim AS base
 
 # Helps track down issues in command execution
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
@@ -81,13 +81,12 @@ RUN poetry install $(if [ "$DJANGO_ENV" = 'production' ]; then echo '--only main
 ############################
 # ---- django stage ----
 ############################
-FROM python:3.11 AS django
+FROM python:3.12-slim AS django
 
 # Helps track down issues in command execution
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
-# Install pipx
-RUN apt-get update && apt-get install --no-install-recommends -y pipx \
+RUN apt-get update && apt-get install --no-install-recommends -y curl \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
@@ -108,10 +107,6 @@ ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=random \
     PYTHONDONTWRITEBYTECODE=1 \
-    # poetry:
-    POETRY_VIRTUALENVS_PREFER_ACTIVE_PYTHON=true \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_HOME='/opt/pypoetry' \
     # APP
     DJANGO_ENV=${DJANGO_ENV} \
     DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} \
@@ -129,6 +124,12 @@ RUN mkdir -p $PYMAP_LOGDIR
 RUN touch "$PYMAP_LOGDIR/pymap-dev.log" "$PYMAP_LOGDIR/pymap.log"
 RUN chown -R pymap:$GROUPNAME $PYMAP_LOGDIR && chmod -R g+rw $PYMAP_LOGDIR
 
+# Copy init script
+COPY Dockerfiles/base/django_init.sh /home/pymap/init.sh
+# Copy the copy_secrets file
+COPY Dockerfiles/base/copy_secrets.sh /home/pymap/copy_secrets.sh
+RUN chmod +x /home/pymap/init.sh /home/pymap/copy_secrets.sh
+
 # switch to user
 USER pymap
 WORKDIR /home/pymap/app
@@ -136,20 +137,6 @@ WORKDIR /home/pymap/app
 # copy virtualenv from build stage
 COPY --from=base /src/.venv /home/pymap/app/.venv
 ENV PATH="/home/pymap/app/.venv/bin:$PATH"
-# Copy init script
-COPY Dockerfiles/base/django_init.sh /home/pymap/init.sh
-# Copy the copy_secrets file
-COPY Dockerfiles/base/copy_secrets.sh /home/pymap/copy_secrets.sh
-
-# Poetry install
-RUN pipx install poetry && pipx ensurepath
-
-# Set PATH to include pipx binary directory
-# ensurepath does not refresh the environment during the build it seems
-ENV PATH="/home/pymap/.local/bin:$PATH"
-# Add poetry home to path
-ENV PATH="$POETRY_HOME/bin:$PATH"
-
 
 # Copy the code last to maximize layer caching
 COPY src .
@@ -160,22 +147,22 @@ RUN chown -R pymap:pymap /home/pymap/app
 USER pymap
 
 ENTRYPOINT [ "/home/pymap/init.sh" ]
+# CMD ["tail", "-f", "/dev/null"]
 
 ############################
 # --- worker base stage ---
 ############################
-FROM python:3.11 AS celery-worker
+FROM python:3.12-slim AS celery-worker
 
 # Helps track down issues in command execution
 SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
 
-# pipx install
-RUN apt-get update && apt-get install --no-install-recommends -y pipx \
-    # imapsync dependencies
-    libdigest-hmac-perl libencode-imaputf7-perl libfile-copy-recursive-perl libio-socket-inet6-perl libwww-perl \
+# imapsync dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y libdigest-hmac-perl libencode-imaputf7-perl \
+    libfile-copy-recursive-perl libio-socket-inet6-perl libwww-perl libdata-uniqid-perl libcgi-pm-perl \
     libio-socket-ssl-perl libio-tee-perl libmail-imapclient-perl libterm-readkey-perl libunicode-string-perl \
     libreadonly-perl libsys-meminfo-perl libregexp-common-perl libfile-tail-perl libtest-mockobject-perl \
-    libjson-webtoken-perl liburi-perl libhtml-parser-perl libauthen-ntlm-perl libdata-uniqid-perl libcgi-pm-perl \
+    libjson-webtoken-perl liburi-perl libhtml-parser-perl libauthen-ntlm-perl \
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
     
@@ -191,9 +178,8 @@ ARG DJANGO_ENV \
     GROUPNAME \
     GID
 
-ENV POETRY_VIRTUALENVS_IN_PROJECT=true \
-    # APP
-    DJANGO_ENV=${DJANGO_ENV} \
+# APP
+ENV DJANGO_ENV=${DJANGO_ENV} \
     DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} \
     CELERY_BROKER_URL=${CELERY_BROKER_URL} \
     CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND} \
@@ -210,24 +196,14 @@ RUN mkdir -p $PYMAP_LOGDIR
 RUN touch "$PYMAP_LOGDIR/pymap-dev.log" "$PYMAP_LOGDIR/pymap.log"
 RUN chown -R celery:$GROUPNAME $PYMAP_LOGDIR && chmod -R g+rw $PYMAP_LOGDIR
 
+# Copy the copy_secrets file
+COPY Dockerfiles/base/copy_secrets.sh /home/celery/copy_secrets.sh
+RUN chmod +x /home/celery/copy_secrets.sh
 
 # Switch to user and app directory
 USER celery
 
 WORKDIR /home/celery/app
-
-# Poetry install
-RUN pipx install poetry \
-    # Add pipx executables to path
-    && pipx ensurepath
-
-
-# Set PATH to include pipx binary directory
-# ensurepath does not refresh the environment during the build it seems
-ENV PATH="/home/celery/.local/bin:$PATH"
-
-# Copy the copy_secrets file
-COPY Dockerfiles/base/copy_secrets.sh /home/celery/copy_secrets.sh
 
 # copy virtualenv from build stage
 COPY --from=base /src/.venv /home/celery/app/.venv

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -e
+set -euxo pipefail
+echo "Running copy_secrets.sh"
 
 # Determine the home dir of the current user
 USER_HOME=$(eval echo ~$(whoami))

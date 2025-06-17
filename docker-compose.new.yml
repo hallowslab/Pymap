@@ -1,17 +1,3 @@
-x-secrets-volumes: &secrets_volumes
-  - type: bind
-    source: ./secrets/.secret
-    target: /run/secrets/.secret
-    read_only: true
-  - type: bind
-    source: ./secrets/.pgpass
-    target: /run/secrets/.pgpass
-    read_only: true
-  - type: bind
-    source: ./secrets/.pg_service.conf
-    target: /run/secrets/.pg_service.conf
-    read_only: true
-    
 services:
   # ---------- Cache|MessageBroker ----------
   redis:
@@ -68,13 +54,12 @@ services:
         - PYMAP_HOSTNAME
         - GROUPNAME
         - GID
-    # command: ["tail", "-f", "/dev/null"]
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail 127.0.0.1:8000/ || exit 1"]
       interval: 15s
       timeout: 30s
       retries: 5
-      start_period: 5s
+      start_period: 30s
     ports:
       - 8000:8000
     depends_on:
