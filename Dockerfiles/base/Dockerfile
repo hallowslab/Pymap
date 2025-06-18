@@ -207,13 +207,13 @@ WORKDIR /home/celery/app
 
 # copy virtualenv from build stage
 COPY --from=base /src/.venv /home/celery/app/.venv
-ENV PATH="/home/pymap/app/.venv/bin:$PATH"
+ENV PATH="/home/celery/app/.venv/bin:$PATH"
 
 # Copy the source code
 COPY ./src/ ./
 
 USER root
-RUN chown -R celery:pymap /home/celery/app/
+RUN chown -R celery:$GROUPNAME /home/celery/app/
 USER celery
 
 # celery -A pymap.celery worker -E --pool=gevent --statedb=celery/working.state"
