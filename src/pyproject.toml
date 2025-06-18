@@ -14,12 +14,12 @@ dependencies=[
     "uvicorn (>=0.27.1,<0.28.0)",
     "gunicorn (>=22.0.0,<23.0.0)",
     "psycopg[binary] (>=3.1.18,<4.0.0)",
-    "celery[redis] (>=5.4.0,<6.0.0)",
     "django-celery-results (==2.5.1)",
     "gevent (>=24.2.1,<25.0.0)",
     "pybloom-live (>=4.0.0,<5.0.0)",
     "greenlet (>=3.0.3,<4.0.0)",
-    "django-celery-beat (>=2.6.0,<3.0.0)"
+    "django-celery-beat (>=2.6.0,<3.0.0)",
+    "celery (>=5.4.0,<6.0.0)"
 ]
 
 [tool.poetry]

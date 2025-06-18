@@ -16,6 +16,8 @@ from pathlib import Path
 import sys
 from typing import Dict, List
 from django.core.management.utils import get_random_secret_key
+from urllib.parse import quote
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
@@ -180,7 +182,7 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "sync/"
 
 # Celery configuration
-CELERY_BROKER_URL = "redis://redis:6379/1"
+CELERY_BROKER_URL = None
 CELERY_RESULT_BACKEND = "redis://redis:6379/2"
 CELERY_TIMEZONE = "Europe/Lisbon"
 CELERY_TASK_TRACK_STARTED = True
@@ -217,7 +219,18 @@ def load_settings_file() -> None:
     """
     Load custom settings from a JSON file.
     """
-    global PYMAP_SETTINGS, LOGGING, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, CACHES, CACHE_MIDDLEWARE_SECONDS
+    global PYMAP_SETTINGS, LOGGING, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, CACHES, CACHE_MIDDLEWARE_SECONDS, CELERY_BROKER_URL
+    ALLOWED_KEYS = [
+        "PYMAP_LOGDIR",
+        "HOSTS",
+        "LOGGING",
+        "DATABASES",
+        "ALLOWED_HOSTS",
+        "CSRF_TRUSTED_ORIGINS",
+        "CACHES",
+        "CACHE_MIDDLEWARE_SECONDS",
+        "CELERY_BROKER_URL"
+    ]
     config_file = "config.json" if DJANGO_ENV == "production" else "config.dev.json"
     custom_settings = {}
     try:
@@ -260,6 +273,29 @@ def load_settings_file() -> None:
     new_origins = custom_settings.get("CSRF_TRUSTED_ORIGINS", [])
     if isinstance(new_origins, List) and len(new_origins) > 0:
         CSRF_TRUSTED_ORIGINS = new_origins
+
+    # Update broker URL
+    new_broker_url = custom_settings.get("CELERY_BROKER_URL", None)
+    if isinstance(new_broker_url, dict):
+        try:
+            scheme = new_broker_url.get("scheme", "amqp")
+            username = quote(new_broker_url["username"])
+            password = quote(new_broker_url["password"])
+            host = new_broker_url["host"]
+            port = new_broker_url.get("port", 5672)
+            vhost = new_broker_url.get("vhost", "/")
+
+            # Ensure vhost is properly URL-encoded
+            vhost_encoded = quote(vhost, safe="")
+
+            CELERY_BROKER_URL = f"{scheme}://{username}:{password}@{host}:{port}/{vhost_encoded}"
+        except KeyError as e:
+            print(f"Missing required broker config field: {e}")
+
+    # Check that all the defined keys are allowed
+    for key in custom_settings.keys():
+        if key not in ALLOWED_KEYS:
+            print(f"Warning: you are trying to load an invalid key {key}, this is not allowed")
 
     # Store custom settings under a specific key in PYMAP_SETTINGS
     # I don't think anything besides django should access the database settings
@@ -308,7 +344,6 @@ def load_settings_env() -> None:
     """
     global ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS
     SETTINGS = [
-        "CELERY_BROKER_URL",
         "CELERY_RESULT_BACKEND",
         "CELERY_CACHE_BACKEND",
         "STATIC_ROOT",
@@ -378,6 +413,13 @@ def verify_secret_key() -> None:
         SECRET_KEY = get_random_secret_key()
         print(f"Generated new secret key {SECRET_KEY}")
 
+def verify_broker_url() -> None:
+    global CELERY_BROKER_URL
+    if CELERY_BROKER_URL is None or CELERY_BROKER_URL == "":
+        print(
+            "you need to define CELERY_BROKER_URL in the config.json"
+        )
+        sys.exit(1)
 
 # Load custom settings, secret file, and env variables, if not testing
 if not TESTING:
@@ -390,6 +432,8 @@ load_settings_env()
 check_log_directory()
 # Check the SECRET_KEY during startup
 verify_secret_key()
+# Check broker is set
+verify_broker_url()
 
 # Set the same secret key for debug and testing
 if DEBUG:

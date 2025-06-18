@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euxo pipefail
 
 # Wait for all systems to start
 #sleep 5
@@ -19,7 +18,7 @@ fi
 
 # Run the initadmin command
 echo "Running initadmin command" >> django_init.txt
-/home/pymap/app/.venv/bin/python manage.py initadmin >> django_init.txt || true # allow this command to fail with set -e
+/home/pymap/app/.venv/bin/python manage.py initadmin >> django_init.txt
 
 # Run the create_management_group command
 echo "Running create_management_groups command" >> django_init.txt

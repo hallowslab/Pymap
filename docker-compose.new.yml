@@ -1,9 +1,23 @@
 services:
-  # ---------- Cache|MessageBroker ----------
+  # ---------- Cache ----------
   redis:
     image: "docker.io/library/redis:latest"
     ports:
       - "6379:6379"
+    restart: always
+
+  # ---------- Cache ----------
+  rabbitmq:
+    image: "docker.io/library/rabbitmq:4-management"
+    hostname: rabbitmq-host
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-pymap}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     restart: always
 
   # ---------- DB ----------
@@ -173,3 +187,4 @@ volumes:
   shared_logs:
   pgdata:
   static_root:
+  rabbitmq_data:
