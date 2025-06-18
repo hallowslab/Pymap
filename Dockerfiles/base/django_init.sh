@@ -28,7 +28,7 @@ echo "Running create_management_groups command" >> django_init.txt
 echo "Importing fixtures...." >> django_init.txt
 /home/pymap/app/.venv/bin/python manage.py loaddata periodic.json
 /home/pymap/app/.venv/bin/python manage.py loaddata purge_results.json
-/home/pymap/app/.venv/bin/python manage.py loaddata delete_mothly.json
+/home/pymap/app/.venv/bin/python manage.py loaddata delete_monthly.json
 
 # Collect static assets 
 /home/pymap/app/.venv/bin/python manage.py collectstatic --no-input
