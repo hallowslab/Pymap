@@ -183,7 +183,7 @@ LOGIN_REDIRECT_URL = "sync/"
 
 # Celery configuration
 CELERY_BROKER_URL = None
-CELERY_RESULT_BACKEND = "redis://redis:6379/2"
+CELERY_RESULT_BACKEND = "redis://redis:6379/1"
 CELERY_TIMEZONE = "Europe/Lisbon"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_ACCEPT_CONTENT = ["json"]
