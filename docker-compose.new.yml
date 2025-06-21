@@ -36,7 +36,7 @@ services:
 
   # ---------- NGINX ----------
   nginx:
-    build: 
+    build:
       context: Dockerfiles/nginx
       args:
         - STATIC_ROOT
@@ -119,7 +119,7 @@ services:
     deploy:
       mode: replicated
       replicas: ${WORKER_REPLICAS:-1}
-    entrypoint: > 
+    entrypoint: >
       /bin/sh -c "
         bash /home/celery/copy_secrets.sh &&
         sleep 5 &&
