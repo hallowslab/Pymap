@@ -12,6 +12,8 @@ declare -A FILE_MAP=(
   [".pg_service.conf"]="$USER_HOME/.pg_service.conf"
   [".pgpass"]="$APP_DIR/.pgpass"
   [".secret"]="$APP_DIR/.secret"
+  ["config.json"]="$APP_DIR/config.json"
+  ["config.dev.json"]="$APP_DIR/config.dev.json"
 )
 
 # Copy secrets if they exist
