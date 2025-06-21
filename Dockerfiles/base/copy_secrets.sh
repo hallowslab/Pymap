@@ -1,15 +1,33 @@
 #!/usr/bin/env bash
-set -euxo pipefail
-echo "Running copy_secrets.sh"
+set -euo pipefail
+
+echo "[INFO] Running copy_secrets.sh"
 
 # Determine the home dir of the current user
-USER_HOME=$(eval echo ~$(whoami))
+USER_HOME=$(eval echo ~"$(whoami)")
+SECRETS_DIR="/run/secrets"
+APP_DIR="$USER_HOME/app"
+
+declare -A FILE_MAP=(
+  [".pg_service.conf"]="$USER_HOME/.pg_service.conf"
+  [".pgpass"]="$APP_DIR/.pgpass"
+  [".secret"]="$APP_DIR/.secret"
+)
 
 # Copy secrets if they exist
-[ -f /run/secrets/.pg_service.conf ] && cp /run/secrets/.pg_service.conf "$USER_HOME/.pg_service.conf"
-[ -f /run/secrets/.pgpass ] && cp /run/secrets/.pgpass "$USER_HOME/app/.pgpass"
-[ -f /run/secrets/.secret ] && cp /run/secrets/.secret "$USER_HOME/app/.secret"
+for src_file in "${!FILE_MAP[@]}"; do
+    src_path="$SECRETS_DIR/$src_file"
+    dest_path="${FILE_MAP[$src_file]}"
 
-# Secure permissions
-chmod 600 "$USER_HOME/.pg_service.conf" "$USER_HOME/app/.pgpass" "$USER_HOME/app/.secret"
-chown "$(whoami)":pymap "$USER_HOME/.pg_service.conf" "$USER_HOME/app/.pgpass" "$USER_HOME/app/.secret"
+    if [ -f "$src_path" ]; then
+        cp "$src_path" "$dest_path"
+        echo "[INFO] Copied $src_file to $dest_path"
+
+        # Secure permissions
+        chmod 600 "$dest_path"
+        chown "$(whoami):pymap" "$dest_path"
+        echo "[INFO] Set ownership and permissions for $dest_path"
+    else
+        echo "[WARN] Secret file $src_path not found; skipping"
+    fi
+done
