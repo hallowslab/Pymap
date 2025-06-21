@@ -298,7 +298,7 @@ def load_settings_file() -> None:
             print(f"Missing required broker config field: {e}")
 
     # Check that all the defined keys are allowed
-    for key in custom_settings.keys():
+    for key in custom_settings:
         if key not in ALLOWED_KEYS:
             print(f"Warning: you are trying to load an invalid key {key}, this is not allowed")
 
