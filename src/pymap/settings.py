@@ -122,6 +122,10 @@ CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": "redis://redis:6379/0",
+    },
+    "django-celery": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://redis:6379/1",
     }
 }
 CACHE_MIDDLEWARE_SECONDS = 3600
@@ -183,7 +187,8 @@ LOGIN_REDIRECT_URL = "sync/"
 
 # Celery configuration
 CELERY_BROKER_URL = None
-CELERY_RESULT_BACKEND = "redis://redis:6379/1"
+CELERY_RESULT_BACKEND = "redis://redis:6379/2"
+CELERY_CACHE_BACKEND = 'django-celery'
 CELERY_TIMEZONE = "Europe/Lisbon"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_ACCEPT_CONTENT = ["json"]
