@@ -164,8 +164,8 @@ services:
       mode: global
     command: >
       /bin/sh -c "
-        bash /home/pymap/copy_secrets.sh &&
-        poetry run celery -A pymap.celery flower
+        bash /home/celery/copy_secrets.sh &&
+        /home/celery/app/.venv/bin/python -m celery -A pymap.celery flower
           --basic-auth='${FLOWER_ADMIN}:${FLOWER_PASSWORD}'
           --address=0.0.0.0
       "
