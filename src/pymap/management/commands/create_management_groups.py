@@ -59,3 +59,11 @@ class Command(BaseCommand):
             CeleryTask,
             ["view_celerytask", "delete_celerytask", "change_celerytask"],
         )
+        # Create config manager group
+        group_name = "Config manager"
+        _, created = Group.objects.get_or_create(name=group_name)
+
+        if created:
+            self.stdout.write(self.style.SUCCESS(f"Group '{group_name}' created."))
+        else:
+            self.stdout.write(self.style.WARNING(f"Group '{group_name}' already exists."))
