@@ -405,22 +405,19 @@ def check_log_directory() -> None:
         sys.exit(1)
 
 
-def verify_secret_key() -> None:
+def verify_secret_key(secret_key:str) -> str|None:
     """
     Verify the SECRET_KEY is provided and set to an appropriate value.
 
     Raises:
         ValueError: If SECRET_KEY is missing in production environment.
     """
-    global SECRET_KEY
-    if SECRET_KEY is None and DJANGO_ENV == "production":
-        print(
-            "You need to provide SECRET_KEY from either the config.json file or a .secret file in the app directory"
-        )
-        sys.exit(1)
-    elif SECRET_KEY is None:
-        SECRET_KEY = get_random_secret_key()
-        print(f"Generated new secret key {SECRET_KEY}")
+    if secret_key is None and DJANGO_ENV == "production":
+        raise ImproperlyConfigured("You need to provide SECRET_KEY from either the config.json file or a .secret file in the app directory")
+    elif secret_key is None:
+        secret_key = get_random_secret_key()
+        print(f"Generated new secret key {secret_key}")
+        return secret_key
 
 def verify_broker_url() -> None:
     global CELERY_BROKER_URL
