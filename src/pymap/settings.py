@@ -45,6 +45,10 @@ if DEBUG:
           current value: DJANGO_ENV={DJANGO_ENV}"""
     )
 
+CONFIG_FILE = os.environ.get("DJANGO_CONFIG_FILE")
+if not CONFIG_FILE:
+    CONFIG_FILE = "config.json" if DJANGO_ENV == "production" else "config.dev.json"
+
 ALLOWED_HOSTS: List[str] = []
 
 CSRF_TRUSTED_ORIGINS: List[str] = []
