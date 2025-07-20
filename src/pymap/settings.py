@@ -419,10 +419,9 @@ def verify_secret_key(secret_key:str) -> str|None:
         print(f"Generated new secret key {secret_key}")
         return secret_key
 
-def verify_broker_url() -> None:
-    global CELERY_BROKER_URL
-    if CELERY_BROKER_URL is None or CELERY_BROKER_URL == "":
-        print(
+def verify_broker_url(broker_url:str) -> None:
+    if broker_url is None or broker_url == "":
+        raise ValueError(
             "you need to define CELERY_BROKER_URL in the config.json"
         )
         sys.exit(1)
