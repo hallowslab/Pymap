@@ -97,7 +97,7 @@ There are only a few directives that you should be aware of:
 4. SECRET_KEY - Missing from the default configuration file, it's best to be created on the app's directory (src/.secret) read more in [Additional Info - .secret file](#secret-file)
 
 - You can also modify the "level": "DEBUG" defined inside the multiple levels of logging, "console" level changes what's printed to the terminal/command line, "file" level changes what's written on the log file defined in "filename": "/var/log/pymap/pymap.log", and root changes the whole application's log level
-```
+```json
 {
   "PYMAP_LOGDIR": "/var/log/pymap",
   "ALLOWED_HOSTS": ["127.0.0.1", "localhost"],
@@ -169,8 +169,15 @@ You can specify multiple compose files like: docker compose --env-file .env -f d
 
 ## Docker dev
 
-```
-docker compose --env-file dev.env -f docker-compose.yml -f docker-compose.extend.yml -f docker-compose.mail.yml up --build -d
+```sh
+# With email servers to sync
+docker compose --env-file dev.env -f docker-compose.new.yml -f docker-compose.extend.yml -f docker-compose.mail.yml up --build -d
+
+# With database and redis monitoring tools
+docker compose --profile monitor --env-file dev.env -f docker-compose.new.yml -f docker-compose.extend.yml up --build -d
+
+# With both
+docker compose --profile monitor --env-file dev.env -f docker-compose.new.yml -f docker-compose.extend.yml -f docker-compose.mail.yml up --build -d
 ```
 
 Test accounts to sync
@@ -182,14 +189,14 @@ test@mail.pymap.lan Password123 test@vps.pymap.lan Password123
 ### Notes:
 I can change the celery stored results with something like this:
 https://docs.celeryq.dev/en/stable/userguide/tasks.html#hiding-sensitive-information-in-arguments
-```
+```python
 add.apply_async((2, 3), argsrepr='(<secret-x>, <secret-y>)')
 ```
 
 however my arguments are just a whole string of the command, I could refactor the core.....
 
 I could also open a PR to the celery repo with a solution for encrypting this data provided a new argument/variable
-```
+```python
 class TaskExtended(Task):
     """For the extend result."""
 
