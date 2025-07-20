@@ -66,6 +66,7 @@ INTERNAL_IPS: List[str] = [
 
 INSTALLED_APPS = [
     "migrator",
+    "pymap",
     "django_celery_results",
     "django.contrib.admin",
     "django.contrib.admindocs",
@@ -131,7 +132,7 @@ CACHES = {
     "django-celery": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": "redis://redis:6379/1",
-    }
+    },
 }
 CACHE_MIDDLEWARE_SECONDS = 3600
 if DJANGO_ENV == "development":
@@ -193,7 +194,7 @@ LOGIN_REDIRECT_URL = "sync/"
 # Celery configuration
 CELERY_BROKER_URL = None
 CELERY_RESULT_BACKEND = "redis://redis:6379/2"
-CELERY_CACHE_BACKEND = 'django-celery'
+CELERY_CACHE_BACKEND = "django-celery"
 CELERY_TIMEZONE = "Europe/Lisbon"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -224,6 +225,7 @@ PYMAP_LOGDIR = "pymap_logs"
 # Custom settings
 PYMAP_SETTINGS: Dict[str, str] = {}
 
+
 def load_custom_settings(config_path: str) -> dict:
     """
     Load custom settings from a json file, return data should be dictionary with key values
@@ -242,28 +244,39 @@ def load_custom_settings(config_path: str) -> dict:
         try:
             data = json.load(f)
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            raise ImproperlyConfigured(f"Failed to load json from config file: {config_file}, reason: {e}")
+            raise ImproperlyConfigured(
+                f"Failed to load json from config file: {config_file}, reason: {e}"
+            )
 
     allowed_keys = [
-        "PYMAP_LOGDIR", "HOSTS", "LOGGING", "DATABASES",
-        "ALLOWED_HOSTS", "CSRF_TRUSTED_ORIGINS",
-        "CACHES", "CACHE_MIDDLEWARE_SECONDS", "CELERY_BROKER_URL"
+        "PYMAP_LOGDIR",
+        "HOSTS",
+        "LOGGING",
+        "DATABASES",
+        "ALLOWED_HOSTS",
+        "CSRF_TRUSTED_ORIGINS",
+        "CACHES",
+        "CACHE_MIDDLEWARE_SECONDS",
+        "CELERY_BROKER_URL",
     ]
 
     for key in data:
         if key not in allowed_keys:
-            print(f"Warning: {key} is not a recognized config key, this will not be loaded")
+            print(
+                f"Warning: {key} is not a recognized config key, this will not be loaded"
+            )
 
     # Use dictionary comprehension to generate a new dataset
-    print(f"Loaded data: {data}")
+    print(f"Loaded data from: {config_file}")
     filtered_data = {key: value for key, value in data.items() if key in allowed_keys}
-    print(f"Filtered data: {data}")
-
 
     if filtered_data is None:
-        raise ImproperlyConfigured(f"Could not load data from config file: {config_file}")
+        raise ImproperlyConfigured(
+            f"Could not load data from config file: {config_file}"
+        )
 
     return filtered_data
+
 
 def build_broker_url(config: dict) -> str:
     scheme = config.get("scheme", "amqp")
@@ -275,7 +288,7 @@ def build_broker_url(config: dict) -> str:
     return f"{scheme}://{username}:{password}@{host}:{port}/{vhost}"
 
 
-def load_key_file(secret_path:str) -> str:
+def load_key_file(secret_path: str) -> str:
     """
     Load SECRET_KEY from file.
 
@@ -286,7 +299,9 @@ def load_key_file(secret_path:str) -> str:
     secret_file = Path(secret_path)
 
     if not secret_file.is_file():
-        raise ImproperlyConfigured(f"Secret key file not found at: {secret_file.resolve()}")
+        raise ImproperlyConfigured(
+            f"Secret key file not found at: {secret_file.resolve()}"
+        )
 
     try:
         secret_key = secret_file.read_text(encoding="utf-8").strip()
@@ -294,7 +309,9 @@ def load_key_file(secret_path:str) -> str:
         raise ImproperlyConfigured(f"Error reading secret key file: {e}")
 
     if len(secret_key) < 50:
-        raise ImproperlyConfigured("SECRET_KEY is too short. Must be at least 50 characters.")
+        raise ImproperlyConfigured(
+            "SECRET_KEY is too short. Must be at least 50 characters."
+        )
 
     return secret_key
 
@@ -334,7 +351,7 @@ def load_settings_env() -> None:
         CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
 
 
-def check_log_directory() -> str|None:
+def check_log_directory() -> str | None:
     """
     Check if the log directory exists and is readable/writable.
     Return found path taking precedence from Environment->Config file->Default value
@@ -344,8 +361,11 @@ def check_log_directory() -> str|None:
         PermissionError: If the log directory is not readable or writable.
     """
     _default = "/var/log/pymap" if DJANGO_ENV == "production" else "pymap_logs"
+    print(f"Default logdir: {_default}")
     _env = os.environ.get("PYMAP_LOGDIR", None)
+    print(f"Environment variable logdir: {_env}")
     log_directory = _env if _env else PYMAP_SETTINGS.get("PYMAP_LOGDIR", _default)
+    print(f"Set logdir as: {log_directory}")
     # Just to ease usage in development
     if DJANGO_ENV == "development":
         Path(PYMAP_LOGDIR).mkdir(parents=True, exist_ok=True)
@@ -362,7 +382,7 @@ def check_log_directory() -> str|None:
     return log_directory
 
 
-def verify_secret_key(secret_key:str) -> str|None:
+def verify_secret_key(secret_key: str) -> str | None:
     """
     Verify the SECRET_KEY is provided and set to an appropriate value.
 
@@ -370,17 +390,21 @@ def verify_secret_key(secret_key:str) -> str|None:
         ImproperlyConfigured: If SECRET_KEY is missing in production environment.
     """
     if secret_key is None and DJANGO_ENV == "production":
-        raise ImproperlyConfigured("You need to provide SECRET_KEY from either the config.json file or a .secret file in the app directory")
+        raise ImproperlyConfigured(
+            "You need to provide SECRET_KEY from either the config.json file or a .secret file in the app directory"
+        )
     elif secret_key is None:
         secret_key = get_random_secret_key()
         print(f"Generated new secret key {secret_key}")
         return secret_key
 
-def verify_broker_url(broker_url:str) -> None:
+
+def verify_broker_url(broker_url: str) -> None:
     if broker_url is None or broker_url == "":
         raise ImproperlyConfigured(
             "you need to define CELERY_BROKER_URL in the config.json"
         )
+
 
 # Load custom settings, secret file, and env variables, if not testing
 if not TESTING:
@@ -391,7 +415,9 @@ if not TESTING:
     CACHES.update(custom_settings.get("CACHES", {}))
     # Set the defaults to the original values if missing
     ALLOWED_HOSTS = custom_settings.get("ALLOWED_HOSTS", ALLOWED_HOSTS)
-    CSRF_TRUSTED_ORIGINS = custom_settings.get("CSRF_TRUSTED_ORIGINS", CSRF_TRUSTED_ORIGINS)
+    CSRF_TRUSTED_ORIGINS = custom_settings.get(
+        "CSRF_TRUSTED_ORIGINS", CSRF_TRUSTED_ORIGINS
+    )
 
     # Set broker URL
     broker_conf = custom_settings.get("CELERY_BROKER_URL")
@@ -403,12 +429,14 @@ if not TESTING:
         except ImproperlyConfigured:
             raise
     else:
-        raise ImproperlyConfigured("You need to provide a broker url configuration in the config file")
+        raise ImproperlyConfigured(
+            "You need to provide a broker url configuration in the config file"
+        )
 
     # Your app-specific settings
-    PYMAP_SETTINGS.update({
-        k: v for k, v in custom_settings.items() if k in ["PYMAP_LOGDIR", "HOSTS"]
-    })
+    PYMAP_SETTINGS.update(
+        {k: v for k, v in custom_settings.items() if k in ["PYMAP_LOGDIR", "HOSTS"]}
+    )
 
 # Load settings from environment variables
 load_settings_env()

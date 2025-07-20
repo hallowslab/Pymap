@@ -7,13 +7,6 @@ from django.utils.crypto import get_random_string
 
 class Command(BaseCommand):
     help = "Resets the password for the supplied user, to a randomly generated one"
-    DOMAINS: List[str] = [
-        "example.com",
-        "example.tld",
-        "pymap.com",
-        "pymap.io",
-        "pymap.lan",
-    ]
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("username", type=str, help="Username of the account")
