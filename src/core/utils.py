@@ -34,7 +34,7 @@ def load_config(f_path: str = "config.json") -> Any:
 def setup_argparse() -> Namespace:
     """
     Parses command-line arguments for the imapsync script generation tool.
-    
+
     Returns:
         Namespace: An object containing parsed command-line arguments, including hostnames, credentials file path, optional domain, output destination, split size, log level, configuration file path, and dry-run flag.
     """
@@ -94,7 +94,7 @@ def setup_argparse() -> Namespace:
 def verify_host(hostname: str, known_hosts: Optional[List[List[str]]] = None) -> str:
     """
     Checks if a hostname matches any regex pattern in a list and appends a string if matched.
-    
+
     If the hostname matches a pattern in the provided known_hosts list, returns the hostname
     concatenated with the corresponding append string. If no patterns match or known_hosts is
     not provided, returns the original hostname.

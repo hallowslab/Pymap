@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 def host_patterns_default() -> List[List[str]]:
     """
     Returns the default host pattern list for user preferences.
-    
+
     Returns:
         A list containing a single host pattern and domain suffix pair.
     """
