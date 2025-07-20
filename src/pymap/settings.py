@@ -374,7 +374,7 @@ def load_settings_env() -> None:
         CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
 
 
-def check_log_directory() -> None:
+def check_log_directory() -> str|None:
     """
     Check if the log directory exists and is readable/writable.
 
@@ -382,14 +382,12 @@ def check_log_directory() -> None:
         FileNotFoundError: If the log directory does not exist.
         PermissionError: If the log directory is not readable or writable.
     """
-    global PYMAP_LOGDIR
     _default = "/var/log/pymap" if DJANGO_ENV == "production" else "pymap_logs"
     _env = os.environ.get("PYMAP_LOGDIR", None)
-    PYMAP_LOGDIR = _env if _env else PYMAP_SETTINGS.get("PYMAP_LOGDIR", _default)
+    log_directory = _env if _env else PYMAP_SETTINGS.get("PYMAP_LOGDIR", _default)
     # Just to ease usage in development
     if DJANGO_ENV == "development":
         Path(PYMAP_LOGDIR).mkdir(parents=True, exist_ok=True)
-    try:
         if not Path(PYMAP_LOGDIR).exists():
             raise FileNotFoundError(
                 errno.ENOENT,
@@ -400,9 +398,7 @@ def check_log_directory() -> None:
             raise PermissionError(
                 f"The log directory {PYMAP_LOGDIR} is not readable/writable."
             )
-    except (FileNotFoundError, PermissionError) as e:
-        print(f"Failed to access log directory in: {PYMAP_LOGDIR}, reason: {e}")
-        sys.exit(1)
+    return log_directory
 
 
 def verify_secret_key(secret_key:str) -> str|None:
@@ -434,11 +430,11 @@ if DJANGO_ENV == "production":
     load_key_file()
 load_settings_env()
 # Call the check_log_directory function during startup
-check_log_directory()
-# Check the SECRET_KEY during startup
-verify_secret_key()
-# Check broker is set
-verify_broker_url()
+try:
+    check_log_directory()
+except (FileNotFoundError, PermissionError) as e:
+    raise ImproperlyConfigured(f"Error checking log directory: {e}")
+
 
 # Set the same secret key for debug and testing
 if DEBUG:
