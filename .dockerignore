@@ -1,6 +1,17 @@
 # Ignore Python bytecode files
 __pycache__/
 
+# secrets
+config*.json
+.secret
+.pgpass
+secrets/
+
+# Others
+pymap_logs/
+.python-version
+django_init.txt
+
 # Ignore Python distribution / virtual environment directories
 venv/
 env/
@@ -31,6 +42,3 @@ include/
 .DS_Store
 *.deb
 
-# Others
-pymap_logs/
-secrets/
