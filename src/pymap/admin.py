@@ -4,12 +4,13 @@ from django.http import (
     HttpRequest,
     JsonResponse,
 )
+from django.conf import settings
 from django.urls import URLPattern, URLResolver, path
 from django.template.response import TemplateResponse
 from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin, GroupAdmin
 from django.contrib.auth.models import User, Group
-from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.utils.html import escape
 
 
@@ -138,7 +139,11 @@ class CustomAdminSite(AdminSite):
         """
         Admin view to display Django settings in a safe way.
         Sensitive keys are masked.
+
+        Requires "Config Manager" group to access
         """
+        if not request.user.groups.filter(name="Config manager").exists():
+            raise PermissionDenied("You do not have permission to view this page.")
         SENSITIVE_KEYS = {"SECRET", "PASSWORD", "TOKEN", "KEY"}
         ILLEGAL_KEYS = ["CELERY_BROKER_URL", "DATABASES"]
 
