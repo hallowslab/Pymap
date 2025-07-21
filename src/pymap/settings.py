@@ -279,6 +279,9 @@ def load_custom_settings(config_path: str) -> dict:
 
 
 def build_broker_url(config: dict) -> str:
+    """
+    Builds a string for the broker url from a dictionary
+    """
     scheme = config.get("scheme", "amqp")
     username = quote(config["username"])
     password = quote(config["password"])
@@ -293,10 +296,11 @@ def load_key_file(secret_path: str) -> str:
     Load SECRET_KEY from file.
 
     Raises:
-        ImproperlyConfigured: On missing file or invalid key.
+        ImproperlyConfigured: On missing file, failing to read the file, or length below 50.
     """
 
     secret_file = Path(secret_path)
+    secret_key = None
 
     if not secret_file.is_file():
         raise ImproperlyConfigured(
@@ -307,6 +311,9 @@ def load_key_file(secret_path: str) -> str:
         secret_key = secret_file.read_text(encoding="utf-8").strip()
     except OSError as e:
         raise ImproperlyConfigured(f"Error reading secret key file: {e}")
+
+    if not secret_key:
+        raise ImproperlyConfigured(f"Failed to load secret from: {secret_key}")
 
     if len(secret_key) < 50:
         raise ImproperlyConfigured(
@@ -397,9 +404,16 @@ def verify_secret_key(secret_key: str) -> str | None:
         secret_key = get_random_secret_key()
         print(f"Generated new secret key {secret_key}")
         return secret_key
+    return secret_key
 
 
 def verify_broker_url(broker_url: str) -> None:
+    """
+    Just verifies the broker url is set does not actually validate if it's properly constructed
+
+    Raises:
+        ImproperlyConfigured: if broker_url is None or empty string ""
+    """
     if broker_url is None or broker_url == "":
         raise ImproperlyConfigured(
             "you need to define CELERY_BROKER_URL in the config.json"
@@ -444,25 +458,23 @@ load_settings_env()
 # We only try to load .secret during production to ease development
 if DJANGO_ENV == "production":
     try:
-        SECRET_KEY = load_key_file()
+        secret_file = os.environ.get("DJANGO_SECRET_FILE")
+        if not secret_file:
+            secret_file = ".secret"
+        SECRET_KEY = load_key_file(secret_file)
+        SECRET_KEY = verify_secret_key(SECRET_KEY)
     except ImproperlyConfigured:
         raise
-# We always verify the key, because if debug is ON we generate one
-try:
-    SECRET_KEY = verify_secret_key(SECRET_KEY)
-except ImproperlyConfigured:
-    raise
+
+# Set the same secret key for debug and testing
+if DEBUG or TESTING:
+    SECRET_KEY = "!!DEBUG_KEY!!"
 
 # Call the check_log_directory function during startup
 try:
     PYMAP_LOGDIR = check_log_directory()
 except (FileNotFoundError, PermissionError) as e:
     raise ImproperlyConfigured(f"Error checking log directory: {e}")
-
-
-# Set the same secret key for debug and testing
-if DEBUG or TESTING:
-    SECRET_KEY = "!!DEBUG_KEY!!"
 
 # Only enable the toolbar when we're in debug mode and we're
 # not running tests. Django will change DEBUG to be False for
