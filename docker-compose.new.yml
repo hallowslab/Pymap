@@ -123,7 +123,7 @@ services:
       /bin/sh -c "
         bash /home/celery/copy_secrets.sh &&
         sleep 5 &&
-        /home/celery/app/.venv/bin/python -m celery -A pymap.celery worker -l ${WORKER_LOG_LEVEL:-INFO} --concurrency=500 --pool=gevent
+        /home/celery/.venv/bin/python -m celery -A pymap.celery worker -l ${WORKER_LOG_LEVEL:-INFO} --concurrency=500 --pool=gevent
       "
     depends_on:
       redis:
@@ -145,7 +145,7 @@ services:
       /bin/sh -c "
         bash /home/celery/copy_secrets.sh &&
         sleep 10 &&
-        /home/celery/app/.venv/bin/python -m celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log
+        /home/celery/.venv/bin/python -m celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log
       "
     depends_on:
       - celery-worker
@@ -154,7 +154,8 @@ services:
   # ---------- flower ----------
   celery-flower:
     <<: *celery_base
-    ports: ["5555:5555"]
+    ports:
+      - "5005:5005"
     volumes:
       - type: bind
         source: ./secrets
@@ -162,15 +163,32 @@ services:
         read_only: true
     deploy:
       mode: global
-    command: >
+    entrypoint: >
       /bin/sh -c "
         bash /home/celery/copy_secrets.sh &&
         /home/celery/app/.venv/bin/python -m celery -A pymap.celery flower
           --basic-auth='${FLOWER_ADMIN}:${FLOWER_PASSWORD}'
-          --address=0.0.0.0
+          --address=0.0.0.0 --port=5005
       "
     profiles: ["flower"]
 
+  # ---------- monitoring ----------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin@pymap.lan}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-PGAdmin}
+    ports:
+      - 9001:80
+    profiles: ["monitor"]
+  
+  rinsight:
+    image: redislabs/redisinsight:latest
+    restart: always
+    ports:
+      - 5540:5540
+    profiles: ["monitor"]
 
 ### DEV
 # ---------- builder ----------

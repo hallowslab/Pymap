@@ -134,9 +134,9 @@ RUN chmod +x /home/pymap/init.sh /home/pymap/copy_secrets.sh
 USER pymap
 WORKDIR /home/pymap/app
 
-# copy virtualenv from build stage
-COPY --from=base /src/.venv /home/pymap/app/.venv
-ENV PATH="/home/pymap/app/.venv/bin:$PATH"
+# Instead of copying to /home/pymap/app/.venv
+COPY --from=base /src/.venv /home/pymap/.venv
+ENV PATH="/home/pymap/.venv/bin:$PATH"
 
 # Copy the code last to maximize layer caching
 COPY src .
@@ -206,8 +206,8 @@ USER celery
 WORKDIR /home/celery/app
 
 # copy virtualenv from build stage
-COPY --from=base /src/.venv /home/celery/app/.venv
-ENV PATH="/home/celery/app/.venv/bin:$PATH"
+COPY --from=base /src/.venv /home/celery/.venv
+ENV PATH="/home/celery/.venv/bin:$PATH"
 
 # Copy the source code
 COPY ./src/ ./
