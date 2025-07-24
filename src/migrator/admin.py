@@ -13,8 +13,8 @@ from pymap import celery_app
 
 logger = logging.getLogger(__name__)
 
-
-class TaskAdmin(admin.ModelAdmin):
+# Ignore param type: , see https://github.com/typeddjango/django-stubs/issues/507
+class TaskAdmin(admin.ModelAdmin):  # type: ignore
     actions = [
         "archive_selected",
         "admin_validate_finished",
@@ -91,7 +91,8 @@ class TaskAdmin(admin.ModelAdmin):
         self.message_user(request, "purge_results task dispatched.", messages.SUCCESS)
 
 
-class PreferencesAdmin(admin.ModelAdmin):
+# Ignore param type: , see https://github.com/typeddjango/django-stubs/issues/507
+class PreferencesAdmin(admin.ModelAdmin):  # type: ignore
     list_display = ["user", "host_patterns"]
     ordering = ["user"]
 

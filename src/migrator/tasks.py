@@ -45,7 +45,7 @@ def should_terminate_task(task_id: str) -> bool:
     return False
 
 
-def get_running_tasks() -> Dict[str, Dict[str, list]]:
+def get_running_tasks() -> Dict[str, Dict[str, list[str]]]:
     """
     Retrieves and categorizes currently running Celery tasks by worker and state.
 
@@ -53,7 +53,7 @@ def get_running_tasks() -> Dict[str, Dict[str, list]]:
         A dictionary mapping task states ('active', 'reserved', 'scheduled') to worker names and lists of task descriptions in the format 'name :: id'.
     """
     inspector = Inspect(app=celery_app)
-    all_tasks: Dict[str, Dict[str, list]] = {
+    all_tasks: Dict[str, Dict[str, list[str]]] = {
         "active": {},
         "reserved": {},
         "scheduled": {},
@@ -108,7 +108,7 @@ def get_running_tasks() -> Dict[str, Dict[str, list]]:
 
 
 @shared_task(bind=True)
-def call_system(self, cmd_list: Optional[List[str]]) -> CALL_SYSTEM_TYPE:
+def call_system(self: shared_task, cmd_list: Optional[List[str]]) -> CALL_SYSTEM_TYPE:
     # cmd_list is not optional and should always be a list of strings
     # however this is a failsafe to avoid parsing invalid data
     # It also is Optional to avoid type errors on the next statement

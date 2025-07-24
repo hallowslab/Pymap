@@ -278,7 +278,7 @@ def load_custom_settings(config_path: str) -> dict:
     return filtered_data
 
 
-def build_broker_url(config: dict) -> str:
+def build_broker_url(config: dict[str, str]) -> str:
     """
     Builds a string for the broker url from a dictionary
     """
@@ -358,7 +358,7 @@ def load_settings_env() -> None:
         CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
 
 
-def check_log_directory() -> str | None:
+def check_log_directory() -> str:
     """
     Check if the log directory exists and is readable/writable.
     Return found path taking precedence from Environment->Config file->Default value
@@ -389,7 +389,7 @@ def check_log_directory() -> str | None:
     return log_directory
 
 
-def verify_secret_key(secret_key: str) -> str | None:
+def verify_secret_key(secret_key: str | None) -> str:
     """
     Verify the SECRET_KEY is provided and set to an appropriate value.
 
@@ -407,7 +407,7 @@ def verify_secret_key(secret_key: str) -> str | None:
     return secret_key
 
 
-def verify_broker_url(broker_url: str) -> None:
+def verify_broker_url(broker_url: str | None) -> None:
     """
     Just verifies the broker url is set does not actually validate if it's properly constructed
 
