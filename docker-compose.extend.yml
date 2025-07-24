@@ -1,4 +1,8 @@
 services:
+  nginx:
+    volumes:
+      - static_root_dev:$STATIC_ROOT
+
   celery-worker:
     environment:
       - DJANGO_ENV=development
