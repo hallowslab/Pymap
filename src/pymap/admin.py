@@ -70,11 +70,7 @@ class CustomAdminSite(AdminSite):
                 self.admin_view(self.purge_results),
                 name="purge-results",
             ),
-            path(
-                "config",
-                self.admin_view(self.print_config),
-                name="config"
-            ),
+            path("config", self.admin_view(self.print_config), name="config"),
         ]
         logger.debug("Custom admin loaded URLS: %s", custom_urls + urls)
         return custom_urls + urls

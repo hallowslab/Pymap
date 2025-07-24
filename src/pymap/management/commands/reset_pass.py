@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management.base import BaseCommand, CommandParser
 from django.contrib.auth.models import User, AbstractBaseUser
