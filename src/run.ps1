@@ -14,7 +14,7 @@ $env:DJANGO_ENV = $DjangoEnv
 $env:DJANGO_CONFIG_FILE = $DjangoConfigFile
 
 # Build the command as an array
-$cmd = @('poetry', 'run', 'python', 'manage.py') + $Args
+$cmd = @('poetry', 'run') + $Args
 
 # Print what will be run
 Write-Host "Running with:"
