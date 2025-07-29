@@ -246,7 +246,7 @@ def load_custom_settings(config_path: str) -> dict:
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             raise ImproperlyConfigured(
                 f"Failed to load json from config file: {config_file}, reason: {e}"
-            )
+            ) from e
 
     allowed_keys = [
         "PYMAP_LOGDIR",
@@ -310,7 +310,7 @@ def load_key_file(secret_path: str) -> str:
     try:
         secret_key = secret_file.read_text(encoding="utf-8").strip()
     except OSError as e:
-        raise ImproperlyConfigured(f"Error reading secret key file: {e}")
+        raise ImproperlyConfigured(f"Error reading secret key file: {e}") from e
 
     if not secret_key:
         raise ImproperlyConfigured(f"Failed to load secret from: {secret_key}")
@@ -474,7 +474,7 @@ if DEBUG or TESTING:
 try:
     PYMAP_LOGDIR = check_log_directory()
 except (FileNotFoundError, PermissionError) as e:
-    raise ImproperlyConfigured(f"Error checking log directory: {e}")
+    raise ImproperlyConfigured(f"Error checking log directory: {e}") from e
 
 # Only enable the toolbar when we're in debug mode and we're
 # not running tests. Django will change DEBUG to be False for
