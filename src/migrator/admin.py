@@ -87,7 +87,7 @@ class TaskAdmin(admin.ModelAdmin):  # type: ignore
     def admin_purge_results(
         self, request: HttpRequest, _: "QuerySet[CeleryTask]"
     ) -> None:
-        purge_results.delay(1, 0, 0, finished=True)
+        purge_results.delay(1, 0, 0, finished_field="true")
         self.message_user(request, "purge_results task dispatched.", messages.SUCCESS)
 
 
