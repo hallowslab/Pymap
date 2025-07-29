@@ -41,3 +41,7 @@ Write-Host "  Command: $($cmd -join ' ')"
 
 # Run the command
 & $cmd[0] $cmd[1..($cmd.Length - 1)]
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Command failed with exit code $LASTEXITCODE"
+    exit $LASTEXITCODE
+}
