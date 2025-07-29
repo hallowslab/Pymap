@@ -14,31 +14,41 @@ class Command(BaseCommand):
     help = "Adds a group for managing the users trough the admin dashboard"
 
     def manage_group(
-        self, group_name: str, model: type[Model], group_permissions: list[str]
+        self, group_name: str, model: type[Model]|None=None, group_permissions: list[str] = []
     ) -> None:
+        
         def has_permission(group: Group, perm: Permission) -> bool:
             return group.permissions.filter(codename=perm.codename).exists()
 
-        # Get or create the group
-        group, _ = Group.objects.get_or_create(name=group_name)
-
-        # Get the permissions related to the User model
-        model_content_type = ContentType.objects.get_for_model(model)
-        permissions = Permission.objects.filter(content_type=model_content_type).filter(
-            codename__in=group_permissions
-        )
-
         # Add permissions to the group
-        for perm in permissions:
-            if not has_permission(group, perm):
-                self.stdout.write(
-                    self.style.SUCCESS(f"Adding {perm.codename} to {group_name}")
-                )
-                group.permissions.add(perm)
-            else:
-                self.stdout.write(
-                    self.style.WARNING(f"{group_name} already has {perm.codename}")
-                )
+        def add_permissions(permissions: list[str]) -> None:
+            for perm in permissions:
+                if not has_permission(group, perm):
+                    self.stdout.write(
+                        self.style.SUCCESS(f"Adding {perm.codename} to {group_name}")
+                    )
+                    group.permissions.add(perm)
+                else:
+                    self.stdout.write(
+                        self.style.WARNING(f"{group_name} already has {perm.codename}")
+                    )
+
+        # Get or create the group
+        group, created = Group.objects.get_or_create(name=group_name)
+
+        # Output message based on whether the group was created or already existed
+        if created:
+            self.stdout.write(self.style.SUCCESS(f'Created group "{group_name}"'))
+        else:
+            self.stdout.write(self.style.NOTICE(f'Group "{group_name}" already exists'))
+
+        # Only add model permissions if model is provided
+        if model is not None:
+            model_content_type = ContentType.objects.get_for_model(model)
+            permissions = Permission.objects.filter(content_type=model_content_type).filter(
+                codename__in=group_permissions
+            )
+            add_permissions(permissions)
 
         # Save the group
         group.save()
@@ -46,9 +56,9 @@ class Command(BaseCommand):
     def handle(self, *args: object, **options: Any) -> None:
         # Create User Managers group
         self.manage_group(
-            "User Managers",
-            User,
-            ["add_user", "change_user", "delete_user", "view_user"],
+            group_name="User Managers",
+            model=User,
+            group_permissions=["add_user", "change_user", "delete_user", "view_user"],
         )
         # Create Task Managers group
         self.manage_group(
@@ -59,13 +69,8 @@ class Command(BaseCommand):
             CeleryTask,
             ["view_celerytask", "delete_celerytask", "change_celerytask"],
         )
-        # Create config manager group
-        group_name = "Config manager"
-        _, created = Group.objects.get_or_create(name=group_name)
-
-        if created:
-            self.stdout.write(self.style.SUCCESS(f"Group '{group_name}' created."))
-        else:
-            self.stdout.write(
-                self.style.WARNING(f"Group '{group_name}' already exists.")
-            )
+        self.manage_group(
+            "Config manager",
+            None,
+            []
+        )
