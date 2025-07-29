@@ -175,7 +175,8 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
             logger.debug("Input before split %s", form.cleaned_data["input_text"])
             clean_input = re.sub(r"\r\n", "\n", form.cleaned_data["input_text"].strip())
             input_text: List[str] = clean_input.split("\n")
-            logger.debug("Input after split %s", input_text)
+            # TODO: Strip out passwords before logging commands
+            #logger.debug("Input after split %s", input_text)
             additional_arguments: str = form.cleaned_data.get(
                 "additional_arguments", ""
             )
