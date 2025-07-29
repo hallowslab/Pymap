@@ -13,9 +13,6 @@ RUN apt-get update && \
     libsys-meminfo-perl libterm-readkey-perl libtest-mockobject-perl libtest-pod-perl libunicode-string-perl liburi-perl libwww-perl \
     libtest-nowarnings-perl libtest-deep-perl libtest-warn-perl libnet-server-perl libpackage-stash-perl libpackage-stash-xs-perl libdigest-hmac-perl
 
-# Clean apt
-RUN apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 # Perl modules for imapsync
 # See https://imapsync.lamiral.info/FAQ.d/FAQ.SSL_errors.txt
@@ -27,6 +24,10 @@ RUN apt-file update
 # Clone and install imapsync
 WORKDIR /opt/imapsync
 RUN git clone https://github.com/imapsync/imapsync.git . && make install
+
+# Clean apt
+RUN apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 ############################
 # ---- base stage ----
@@ -217,4 +218,4 @@ RUN chown -R celery:$GROUPNAME /home/celery/app/
 USER celery
 
 # celery -A pymap.celery worker -E --pool=gevent --statedb=celery/working.state"
-CMD ["sh", "-c", "sleep 5 && $(poetry env info --path)/bin/celery -A pymap.celery worker -l INFO --concurrency=500 --pool=gevent"]
+CMD ["sh", "-c", "sleep 5 && /home/celery/.venv/bin/celery -A pymap.celery worker -l INFO --concurrency=100 --pool=gevent"]
