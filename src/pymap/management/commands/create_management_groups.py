@@ -14,7 +14,7 @@ class Command(BaseCommand):
     help = "Adds a group for managing the users trough the admin dashboard"
 
     def manage_group(
-        self, group_name: str, model: type[Model]|None=None, group_permissions: list[str] = []
+        self, group_name: str, model: type[Model]|None=None, group_permissions: list[str]|None = None
     ) -> None:
         
         def has_permission(group: Group, perm: Permission) -> bool:
@@ -43,7 +43,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.NOTICE(f'Group "{group_name}" already exists'))
 
         # Only add model permissions if model is provided
-        if model is not None:
+        if model is not None and group_permissions is not None:
             model_content_type = ContentType.objects.get_for_model(model)
             permissions = Permission.objects.filter(content_type=model_content_type).filter(
                 codename__in=group_permissions
