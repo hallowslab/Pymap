@@ -154,7 +154,7 @@ def log_details(request: HttpRequest, task_id: str, filename: str) -> HttpRespon
 def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
     """
     Handles sync requests by creating a new migration task and scheduling it for execution.
-    
+
     On POST, validates the sync form, processes input data, generates migration scripts, schedules a Celery task, saves task metadata (including optional custom label), and redirects to the task details page. On GET, renders the sync form.
     """
     assert isinstance(request.user, User)  # AbstractBaseUser has no .username
@@ -175,7 +175,8 @@ def sync(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
             logger.debug("Input before split %s", form.cleaned_data["input_text"])
             clean_input = re.sub(r"\r\n", "\n", form.cleaned_data["input_text"].strip())
             input_text: List[str] = clean_input.split("\n")
-            logger.debug("Input after split %s", input_text)
+            # TODO: Strip out passwords before logging commands
+            #logger.debug("Input after split %s", input_text)
             additional_arguments: str = form.cleaned_data.get(
                 "additional_arguments", ""
             )
@@ -254,7 +255,7 @@ def retry_task(
     # This is to avoid -> Caution: A complex expression can overflow the C stack and cause a crash.
     """
     Retries a finished Celery migration task by creating a new task with the same parameters.
-    
+
     Fetches the original task's command list and metadata, schedules a new Celery task with identical arguments, saves the new task in the database, and redirects to the new task's details page. Returns an error if the original task does not exist or is not finished.
     """
     MAX_LENGTH = 20000
@@ -262,14 +263,14 @@ def retry_task(
     def validate_and_evaluate(input_str: str, max_length: int = MAX_LENGTH) -> Any:
         """
         Safely evaluates a string as a Python literal if it does not exceed the specified length.
-        
+
         Args:
             input_str: The string to evaluate.
             max_length: The maximum allowed length for the input string.
-        
+
         Returns:
             The evaluated Python object.
-        
+
         Raises:
             ValueError: If the input string exceeds the maximum allowed length.
             ValueError, SyntaxError: If the string is not a valid Python literal.
@@ -367,7 +368,7 @@ class CeleryTaskList(ListCreateAPIView):
         # Handle DataTables parameters
         """
         Returns a paginated, searchable, and sortable list of Celery tasks for DataTables.
-        
+
         Handles DataTables-compatible query parameters for pagination, search, and ordering.
         Filters tasks by ownership if requested, and supports searching by task ID, domains,
         or custom label. Returns a JSON response with total and filtered record counts and
@@ -668,7 +669,7 @@ class DeleteTask(APIView):
         # Incompatible type for lookup 'owner': AnonymousUser
         """
         Deletes specified Celery tasks and their logs if the user has admin privileges.
-        
+
         Accepts a list of task IDs in the request body, verifies that the requesting user is a staff member, deletes the corresponding tasks, and returns a status for each task. Returns an error if the user lacks permissions or if the input is invalid.
         """
         assert isinstance(request.user, SimpleLazyObject)
@@ -711,7 +712,7 @@ class CheckIDs(APIView):
     def post(self, request: APIRequest) -> APIResponse:
         """
         Checks IMAP ID support for the provided source and destination servers.
-        
+
         Receives source and destination server identifiers in the request data, determines their IMAP ID capabilities using a utility function, and returns a response indicating the results.
         """
         source: str = request.data.get("source", "")
@@ -739,7 +740,7 @@ class CheckCredentials(APIView):
     def post(self, request: APIRequest) -> APIResponse:
         """
         Handles POST requests to check credentials for source and destination servers.
-        
+
         Logs the received input and returns a 501 Not Implemented response with the submitted data.
         """
         source = request.data.get("source")

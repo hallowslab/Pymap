@@ -3,13 +3,17 @@ from django.http.response import HttpResponseRedirect, HttpResponse
 from django.http.request import HttpRequest
 from django.urls import reverse
 
+from typing import Callable
+
 logger = logging.getLogger(__name__)
 
 
-def staff_only(get_response):
+def staff_only(
+    get_response: Callable[[HttpRequest], HttpResponse]
+) -> Callable[[HttpRequest], HttpResponse]:
     # One-time configuration and initialization.
 
-    def middleware(request: HttpRequest) -> (HttpResponse | HttpResponseRedirect):
+    def middleware(request: HttpRequest) -> HttpResponse | HttpResponseRedirect:
         admin_login_url: str = reverse("admin:login")
         admin_logout_url: str = reverse("admin:logout")
         migrator_index: str = reverse("migrator:index")
@@ -22,7 +26,9 @@ def staff_only(get_response):
         ):
             logger.debug("Intercepted path %s, setting cookie" % (request.path))
             # Redirect non-staff users to the migrator:index page
-            response = HttpResponseRedirect(reverse("migrator:index"))
+            response: HttpResponse | HttpResponseRedirect = HttpResponseRedirect(
+                reverse("migrator:index")
+            )
             response.set_cookie(
                 "privilege_warning", "true", max_age=10
             )  # Set a short-lived cookie

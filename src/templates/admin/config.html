@@ -1,0 +1,30 @@
+{% extends "admin/base_site.html" %}
+<style>
+.admin-config-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.admin-config-table th, .admin-config-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    vertical-align: top;
+}
+</style>
+{% block content %}
+<table class="admin-config-table">
+    <thead>
+        <tr>
+            <th>Setting</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for key, value in config_data.items %}
+        <tr>
+            <td><strong>{{ key }}</strong></td>
+            <td><pre style="white-space: pre-wrap;">{{ value }}</pre></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

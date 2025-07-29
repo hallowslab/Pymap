@@ -1,0 +1,208 @@
+services:
+  # ---------- Cache ----------
+  redis:
+    image: "docker.io/library/redis:latest"
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # ---------- Cache ----------
+  rabbitmq:
+    image: "docker.io/library/rabbitmq:4-management"
+    hostname: rabbitmq-host
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-pymap}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: always
+
+  # ---------- DB ----------
+  postgres:
+    image: "docker.io/library/postgres:latest"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pymap}
+      POSTGRES_USER: ${POSTGRES_USER:-pymap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: ${POSTGRES_HOST:-127.0.0.1}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # ---------- NGINX ----------
+  nginx:
+    build:
+      context: Dockerfiles/nginx
+      args:
+        - STATIC_ROOT
+        - GROUPNAME
+        - GID
+        - PYMAP_HOSTNAME
+    ports:
+      - "5001:80"
+      - "5000:443"
+    depends_on:
+      pymap:
+        condition: service_healthy
+    volumes:
+      - static_root:$STATIC_ROOT
+
+  # ---------- pymap ----------
+  pymap:
+    build:
+      context: .
+      dockerfile: Dockerfiles/base/Dockerfile
+      target: django
+      args:
+        - DJANGO_ENV
+        - DJANGO_SETTINGS_MODULE
+        - CELERY_BROKER_URL
+        - CELERY_RESULT_BACKEND
+        - STATIC_ROOT
+        - PYMAP_LOGDIR
+        - PYMAP_HOSTNAME
+        - GROUPNAME
+        - GID
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail 127.0.0.1:8000/ || exit 1"]
+      interval: 15s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    ports:
+      - 8000:8000
+    depends_on:
+      - postgres
+      - redis
+      - celery-worker
+    volumes:
+      - shared_logs:$PYMAP_LOGDIR
+      - static_root:$STATIC_ROOT
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    user: "1001:$GID"  # UID:GID for user
+    group_add:
+      - $GROUPNAME
+
+  # ---------- celery worker ----------
+  celery-worker:
+    &celery_base
+    build:
+      context: .
+      dockerfile: Dockerfiles/base/Dockerfile
+      target: celery-worker
+      args:
+        - DJANGO_ENV
+        - DJANGO_SETTINGS_MODULE
+        - CELERY_BROKER_URL
+        - CELERY_RESULT_BACKEND
+        - STATIC_ROOT
+        - PYMAP_LOGDIR
+        - PYMAP_HOSTNAME
+        - GROUPNAME
+        - GID
+    ports: []
+    volumes:
+      - shared_logs:$PYMAP_LOGDIR
+      - static_root:$STATIC_ROOT
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    deploy:
+      mode: replicated
+      replicas: ${WORKER_REPLICAS:-1}
+    entrypoint: >
+      /bin/sh -c "
+        bash /home/celery/copy_secrets.sh &&
+        sleep 5 &&
+        /home/celery/.venv/bin/python -m celery -A pymap.celery worker -l ${WORKER_LOG_LEVEL:-INFO} --concurrency=500 --pool=gevent
+      "
+    depends_on:
+      redis:
+        condition: service_started
+
+
+  # ---------- celery beat ----------
+  celery-beat:
+    <<: *celery_base
+    ports: []
+    volumes:
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    deploy:
+      mode: global
+    entrypoint: >
+      /bin/sh -c "
+        bash /home/celery/copy_secrets.sh &&
+        sleep 10 &&
+        /home/celery/.venv/bin/python -m celery -A pymap.celery beat -l ${BEAT_LOG_LEVEL:-INFO} --scheduler django_celery_beat.schedulers:DatabaseScheduler -f $PYMAP_LOGDIR/celery-beat.log
+      "
+    depends_on:
+      - celery-worker
+
+
+  # ---------- flower ----------
+  celery-flower:
+    <<: *celery_base
+    ports:
+      - "5005:5005"
+    volumes:
+      - type: bind
+        source: ./secrets
+        target: /run/secrets
+        read_only: true
+    deploy:
+      mode: global
+    entrypoint: >
+      /bin/sh -c "
+        bash /home/celery/copy_secrets.sh &&
+        /home/celery/app/.venv/bin/python -m celery -A pymap.celery flower
+          --basic-auth='${FLOWER_ADMIN}:${FLOWER_PASSWORD}'
+          --address=0.0.0.0 --port=5005
+      "
+    profiles: ["flower"]
+
+  # ---------- monitoring ----------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin@pymap.lan}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-PGAdmin}
+    ports:
+      - 9001:80
+    profiles: ["monitor"]
+  
+  rinsight:
+    image: redislabs/redisinsight:latest
+    restart: always
+    ports:
+      - 5540:5540
+    profiles: ["monitor"]
+
+### DEV
+# ---------- builder ----------
+  # base:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfiles/base/Dockerfile
+  #     target: base
+  #   ports: []
+  #   command: ["tail", "-f", "/dev/null"]
+
+
+volumes:
+  shared_logs:
+  pgdata:
+  static_root:
+  rabbitmq_data:

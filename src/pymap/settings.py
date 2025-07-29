@@ -16,6 +16,9 @@ from pathlib import Path
 import sys
 from typing import Dict, List
 from django.core.management.utils import get_random_secret_key
+from django.core.exceptions import ImproperlyConfigured
+from urllib.parse import quote
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
@@ -43,6 +46,10 @@ if DEBUG:
           current value: DJANGO_ENV={DJANGO_ENV}"""
     )
 
+CONFIG_FILE = os.environ.get("DJANGO_CONFIG_FILE")
+if not CONFIG_FILE:
+    CONFIG_FILE = "config.json" if DJANGO_ENV == "production" else "config.dev.json"
+
 ALLOWED_HOSTS: List[str] = []
 
 CSRF_TRUSTED_ORIGINS: List[str] = []
@@ -59,6 +66,7 @@ INTERNAL_IPS: List[str] = [
 
 INSTALLED_APPS = [
     "migrator",
+    "pymap",
     "django_celery_results",
     "django.contrib.admin",
     "django.contrib.admindocs",
@@ -88,7 +96,7 @@ ROOT_URLCONF = "pymap.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -119,8 +127,12 @@ DATABASES = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379",
-    }
+        "LOCATION": "redis://redis:6379/0",
+    },
+    "django-celery": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://redis:6379/1",
+    },
 }
 CACHE_MIDDLEWARE_SECONDS = 3600
 if DJANGO_ENV == "development":
@@ -180,8 +192,9 @@ LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "sync/"
 
 # Celery configuration
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_RESULT_BACKEND = "redis://localhost:6379/1"
+CELERY_BROKER_URL = None
+CELERY_RESULT_BACKEND = "redis://redis:6379/2"
+CELERY_CACHE_BACKEND = "django-celery"
 CELERY_TIMEZONE = "Europe/Lisbon"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -213,85 +226,101 @@ PYMAP_LOGDIR = "pymap_logs"
 PYMAP_SETTINGS: Dict[str, str] = {}
 
 
-def load_settings_file() -> None:
+def load_custom_settings(config_path: str) -> dict:
     """
-    Load custom settings from a JSON file.
-    """
-    global PYMAP_SETTINGS, LOGGING, ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, CACHES, CACHE_MIDDLEWARE_SECONDS
-    config_file = "config.json" if DJANGO_ENV == "production" else "config.dev.json"
-    custom_settings = {}
-    try:
-        if not Path(config_file).exists():
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), config_file
-            )
-        with open(Path(BASE_DIR, config_file)) as f:
-            custom_settings = json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError) as e:
-        print(f"Failed to load config file from: {config_file}, reason: {e}")
-        sys.exit(1)
-
-    print(f"Loaded custom settings from: {Path(BASE_DIR, config_file)}")
-
-    # Override the LOGGING config with the user supplied if it exists
-    log_config = custom_settings.get("LOGGING", {})
-    if isinstance(log_config, dict) and len(log_config) > 0:
-        LOGGING.update(log_config)
-
-    # Override the DATABASES config with the user supplied if it exists
-    databases_config = custom_settings.get("DATABASES", {})
-    if isinstance(databases_config, dict) and len(databases_config) > 0:
-        DATABASES.update(databases_config)
-
-    # Override the CACHES config with the user supplied if it exists
-    caches_config = custom_settings.get("CACHES", {})
-    caches_seconds = custom_settings.get("CACHE_MIDDLEWARE_SECONDS", 3600)
-    if isinstance(caches_config, dict) and len(caches_config) > 0:
-        CACHES.update(caches_config)
-    if isinstance(caches_seconds, int):
-        CACHE_MIDDLEWARE_SECONDS = caches_seconds
-
-    # Update ALLOWED_HOSTS
-    new_hosts = custom_settings.get("ALLOWED_HOSTS", [])
-    if isinstance(new_hosts, List) and len(new_hosts) > 0:
-        ALLOWED_HOSTS = new_hosts
-
-    # Update CSRF_TRUSTED_ORIGINS
-    new_origins = custom_settings.get("CSRF_TRUSTED_ORIGINS", [])
-    if isinstance(new_origins, List) and len(new_origins) > 0:
-        CSRF_TRUSTED_ORIGINS = new_origins
-
-    # Store custom settings under a specific key in PYMAP_SETTINGS
-    # I don't think anything besides django should access the database settings
-    # we only include settings the app should access
-    PYMAP_SETTINGS.update(
-        {k: v for k, v in custom_settings.items() if k in ["PYMAP_LOGDIR", "HOSTS"]}
-    )
-
-
-# TODO: Add a better way to check complexity of SECRET_KEY
-def load_key_file() -> None:
-    """
-    Load the SECRET_KEY from a .secret file.
+    Load custom settings from a json file, return data should be dictionary with key values
 
     Raises:
-        FileNotFoundError: If the file is missing.
-        ValueError: If the loaded SECRET_KEY is too short.
-        OSError: When it fails to open the file
+        ImproperlyConfigured: on missing config, if data is None before returning
     """
-    global SECRET_KEY
+
+    config_file = Path(config_path)
+    data = None
+
+    if not config_file.is_file():
+        raise ImproperlyConfigured(f"Config path provided {config_file} is not a file")
+
+    with open(config_file) as f:
+        try:
+            data = json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            raise ImproperlyConfigured(
+                f"Failed to load json from config file: {config_file}, reason: {e}"
+            ) from e
+
+    allowed_keys = [
+        "PYMAP_LOGDIR",
+        "HOSTS",
+        "LOGGING",
+        "DATABASES",
+        "ALLOWED_HOSTS",
+        "CSRF_TRUSTED_ORIGINS",
+        "CACHES",
+        "CACHE_MIDDLEWARE_SECONDS",
+        "CELERY_BROKER_URL",
+    ]
+
+    for key in data:
+        if key not in allowed_keys:
+            print(
+                f"Warning: {key} is not a recognized config key, this will not be loaded"
+            )
+
+    # Use dictionary comprehension to generate a new dataset
+    print(f"Loaded data from: {config_file}")
+    filtered_data = {key: value for key, value in data.items() if key in allowed_keys}
+
+    if len(filtered_data) == 0:
+        raise ImproperlyConfigured(
+            f"Could not load data from config file: {config_file}"
+        )
+
+    return filtered_data
+
+
+def build_broker_url(config: dict[str, str]) -> str:
+    """
+    Builds a string for the broker url from a dictionary
+    """
+    scheme = config.get("scheme", "amqp")
+    username = quote(config["username"])
+    password = quote(config["password"])
+    host = config["host"]
+    port = config.get("port", 5672)
+    vhost = quote(config.get("vhost", "/"), safe="")
+    return f"{scheme}://{username}:{password}@{host}:{port}/{vhost}"
+
+
+def load_key_file(secret_path: str) -> str:
+    """
+    Load SECRET_KEY from file.
+
+    Raises:
+        ImproperlyConfigured: On missing file, failing to read the file, or length below 50.
+    """
+
+    secret_file = Path(secret_path)
+    secret_key = None
+
+    if not secret_file.is_file():
+        raise ImproperlyConfigured(
+            f"Secret key file not found at: {secret_file.resolve()}"
+        )
+
     try:
-        if not Path(".secret").is_file() and DJANGO_ENV == "production":
-            raise FileNotFoundError(f'File {Path("./", ".secret")} was not found')
-        with open(".secret", "r", encoding="utf-8") as fh:
-            read_key: str = fh.read().strip()
-            if len(read_key) > 10:
-                SECRET_KEY = read_key
-            else:
-                raise ValueError("The loaded SECRET_KEY is too short.")
-    except (OSError, FileNotFoundError, ValueError) as e:
-        print(f"Failed to load secret file: {e}")
-        sys.exit(1)
+        secret_key = secret_file.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        raise ImproperlyConfigured(f"Error reading secret key file: {e}") from e
+
+    if not secret_key:
+        raise ImproperlyConfigured(f"Failed to load secret from: {secret_key}")
+
+    if len(secret_key) < 50:
+        raise ImproperlyConfigured(
+            "SECRET_KEY is too short. Must be at least 50 characters."
+        )
+
+    return secret_key
 
 
 def load_settings_env() -> None:
@@ -308,7 +337,6 @@ def load_settings_env() -> None:
     """
     global ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS
     SETTINGS = [
-        "CELERY_BROKER_URL",
         "CELERY_RESULT_BACKEND",
         "CELERY_CACHE_BACKEND",
         "STATIC_ROOT",
@@ -330,22 +358,24 @@ def load_settings_env() -> None:
         CSRF_TRUSTED_ORIGINS.append(f"https://{hostname}")
 
 
-def check_log_directory() -> None:
+def check_log_directory() -> str:
     """
     Check if the log directory exists and is readable/writable.
+    Return found path taking precedence from Environment->Config file->Default value
 
     Raises:
         FileNotFoundError: If the log directory does not exist.
         PermissionError: If the log directory is not readable or writable.
     """
-    global PYMAP_LOGDIR
     _default = "/var/log/pymap" if DJANGO_ENV == "production" else "pymap_logs"
+    print(f"Default logdir: {_default}")
     _env = os.environ.get("PYMAP_LOGDIR", None)
-    PYMAP_LOGDIR = _env if _env else PYMAP_SETTINGS.get("PYMAP_LOGDIR", _default)
+    print(f"Environment variable logdir: {_env}")
+    log_directory = _env if _env else PYMAP_SETTINGS.get("PYMAP_LOGDIR", _default)
+    print(f"Set logdir as: {log_directory}")
     # Just to ease usage in development
     if DJANGO_ENV == "development":
         Path(PYMAP_LOGDIR).mkdir(parents=True, exist_ok=True)
-    try:
         if not Path(PYMAP_LOGDIR).exists():
             raise FileNotFoundError(
                 errno.ENOENT,
@@ -356,43 +386,95 @@ def check_log_directory() -> None:
             raise PermissionError(
                 f"The log directory {PYMAP_LOGDIR} is not readable/writable."
             )
-    except (FileNotFoundError, PermissionError) as e:
-        print(f"Failed to access log directory in: {PYMAP_LOGDIR}, reason: {e}")
-        sys.exit(1)
+    return log_directory
 
 
-def verify_secret_key() -> None:
+def verify_secret_key(secret_key: str | None) -> str:
     """
     Verify the SECRET_KEY is provided and set to an appropriate value.
 
     Raises:
-        ValueError: If SECRET_KEY is missing in production environment.
+        ImproperlyConfigured: If SECRET_KEY is missing in production environment.
     """
-    global SECRET_KEY
-    if SECRET_KEY is None and DJANGO_ENV == "production":
-        print(
+    if secret_key is None and DJANGO_ENV == "production":
+        raise ImproperlyConfigured(
             "You need to provide SECRET_KEY from either the config.json file or a .secret file in the app directory"
         )
-        sys.exit(1)
-    elif SECRET_KEY is None:
-        SECRET_KEY = get_random_secret_key()
-        print(f"Generated new secret key {SECRET_KEY}")
+    elif secret_key is None:
+        secret_key = get_random_secret_key()
+        print(f"Generated new secret key {secret_key}")
+        return secret_key
+    return secret_key
 
 
-# Load custom settings, secret file, and env variables
-load_settings_file()
+def verify_broker_url(broker_url: str | None) -> None:
+    """
+    Just verifies the broker url is set does not actually validate if it's properly constructed
+
+    Raises:
+        ImproperlyConfigured: if broker_url is None or empty string ""
+    """
+    if broker_url is None or broker_url == "":
+        raise ImproperlyConfigured(
+            "you need to define CELERY_BROKER_URL in the config.json"
+        )
+
+
+# Load custom settings, secret file, and env variables, if not testing
+if not TESTING:
+    custom_settings = load_custom_settings(CONFIG_FILE)
+    # Do not insert data if values are missing
+    LOGGING.update(custom_settings.get("LOGGING", {}))
+    DATABASES.update(custom_settings.get("DATABASES", {}))
+    CACHES.update(custom_settings.get("CACHES", {}))
+    # Set the defaults to the original values if missing
+    ALLOWED_HOSTS = custom_settings.get("ALLOWED_HOSTS", ALLOWED_HOSTS)
+    CSRF_TRUSTED_ORIGINS = custom_settings.get(
+        "CSRF_TRUSTED_ORIGINS", CSRF_TRUSTED_ORIGINS
+    )
+
+    # Set broker URL
+    broker_conf = custom_settings.get("CELERY_BROKER_URL")
+    if broker_conf:
+        CELERY_BROKER_URL = build_broker_url(broker_conf)
+        # Check broker is set
+        try:
+            verify_broker_url(CELERY_BROKER_URL)
+        except ImproperlyConfigured:
+            raise
+    else:
+        raise ImproperlyConfigured(
+            "You need to provide a broker url configuration in the config file"
+        )
+
+    # Your app-specific settings
+    PYMAP_SETTINGS.update(
+        {k: v for k, v in custom_settings.items() if k in ["PYMAP_LOGDIR", "HOSTS"]}
+    )
+
+# Load settings from environment variables
+load_settings_env()
+
 # We only try to load .secret during production to ease development
 if DJANGO_ENV == "production":
-    load_key_file()
-load_settings_env()
-# Call the check_log_directory function during startup
-check_log_directory()
-# Check the SECRET_KEY during startup
-verify_secret_key()
+    try:
+        secret_file = os.environ.get("DJANGO_SECRET_FILE")
+        if not secret_file:
+            secret_file = ".secret"
+        SECRET_KEY = load_key_file(secret_file)
+        SECRET_KEY = verify_secret_key(SECRET_KEY)
+    except ImproperlyConfigured:
+        raise
 
 # Set the same secret key for debug and testing
-if DEBUG:
+if DEBUG or TESTING:
     SECRET_KEY = "!!DEBUG_KEY!!"
+
+# Call the check_log_directory function during startup
+try:
+    PYMAP_LOGDIR = check_log_directory()
+except (FileNotFoundError, PermissionError) as e:
+    raise ImproperlyConfigured(f"Error checking log directory: {e}") from e
 
 # Only enable the toolbar when we're in debug mode and we're
 # not running tests. Django will change DEBUG to be False for
