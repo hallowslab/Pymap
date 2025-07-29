@@ -270,7 +270,7 @@ def load_custom_settings(config_path: str) -> dict:
     print(f"Loaded data from: {config_file}")
     filtered_data = {key: value for key, value in data.items() if key in allowed_keys}
 
-    if filtered_data is None:
+    if len(filtered_data) == 0:
         raise ImproperlyConfigured(
             f"Could not load data from config file: {config_file}"
         )
