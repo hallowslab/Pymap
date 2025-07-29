@@ -1,14 +1,22 @@
 services:
+  nginx:
+    volumes:
+      - static_root_dev:${STATIC_ROOT}
+
   celery-worker:
     environment:
       - DJANGO_ENV=development
     volumes:
       - ./src:/home/celery/app
-      - shared_logs:$PYMAP_LOGDIR
+      - shared_logs:${PYMAP_LOGDIR}
     deploy:
       mode: global
     # Overrides default command so things don't shut down after the process ends.
     command: /bin/sh -c "while sleep 1000; do :; done"
+
+  postgres:
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
 
   pymap:
     ports:
@@ -18,8 +26,13 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "exit 0"]
     # Overrides default command so things don't shut down after the process ends.
-    command: /bin/sh -c "while sleep 1000; do :; done"
+    command: /bin/sh -c "/home/pymap/init.sh && while sleep 1000; do :; done"
     volumes:
       - ./src:/home/pymap/app  # Mount the src directory into the container
-      - shared_logs:$PYMAP_LOGDIR
-      - static_root:$STATIC_ROOT
+      - shared_logs_dev:${PYMAP_LOGDIR}
+      - static_root_dev:${STATIC_ROOT}
+
+volumes:
+  shared_logs_dev:
+  pgdata_dev:
+  static_root_dev:

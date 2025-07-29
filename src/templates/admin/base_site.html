@@ -9,5 +9,6 @@
 
 {% block userlinks %}
 <a href="{% url 'admin:commands' %}" class="nav-link">Commands</a> /
+<a href="{% url 'admin:config' %}" class="nav-link">Config</a> /
 {{ block.super }}
 {% endblock %}

@@ -1,19 +1,12 @@
-from typing import Any, List
+from typing import Any
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management.base import BaseCommand, CommandParser
-from django.contrib.auth.models import User, AbstractBaseUser
+from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 
 
 class Command(BaseCommand):
     help = "Resets the password for the supplied user, to a randomly generated one"
-    DOMAINS: List[str] = [
-        "example.com",
-        "example.tld",
-        "pymap.com",
-        "pymap.io",
-        "pymap.lan",
-    ]
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("username", type=str, help="Username of the account")
@@ -30,8 +23,9 @@ class Command(BaseCommand):
         username = options["username"]
         length = options["length"]
         try:
-            user = User.objects.get(username=username)
-            assert isinstance(user, AbstractBaseUser)
+            UserModel = get_user_model()
+            user = UserModel.objects.get(username=username)
+
             _new_password = get_random_string(length)
             user.set_password(_new_password)
             if not user.check_password(_new_password):
