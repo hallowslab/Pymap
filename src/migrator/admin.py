@@ -4,6 +4,7 @@ from django.contrib import admin, messages
 from django.db.models import QuerySet
 from django.utils.translation import ngettext
 from celery.result import AsyncResult
+from celery.exceptions import TimeoutError
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 
 from django_celery_results.models import TaskResult
