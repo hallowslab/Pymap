@@ -29,7 +29,7 @@ class ScriptGenerator:
     ) -> None:
         """
         Initializes a ScriptGenerator instance for generating synchronization scripts.
-        
+
         Args:
             host1: The source host name or address.
             host2: The destination host name or address.
@@ -41,7 +41,7 @@ class ScriptGenerator:
                 - split: Number of lines per output file.
                 - dry_run: If True, disables file writing.
                 - pymap_logdir: Directory for log files.
-        
+
         The constructor verifies hostnames, sets up output and logging parameters, and prepares internal state for script generation.
         """
         self.config = kwargs.get("config", {})
@@ -80,7 +80,7 @@ class ScriptGenerator:
     def find_domains(self, line: str) -> None:
         """
         Extracts and tracks unique domains found in a line of input.
-        
+
         Splits the input line by spaces, attempts to extract a domain from each part, and adds any new domains to the internal list. This supports scenarios where user credentials from different domains are present in the same line.
         """
         parts = line.split(" ")
@@ -95,7 +95,7 @@ class ScriptGenerator:
     def get_known_hosts(self) -> Optional[List[List[str]]]:
         """
         Returns the list of known host patterns for host verification.
-        
+
         If additional known hosts are provided, returns them; otherwise, returns the hosts from the configuration.
         """
         config_hosts: Optional[List[List[str]]] = self.config.get("HOSTS", [])
@@ -106,7 +106,7 @@ class ScriptGenerator:
     def process_file(self, fpath: str) -> None:
         """
         Processes an input file, generating and writing script lines to output files in batches.
-        
+
         Reads each line from the specified file, generates corresponding script lines, and writes them to output files. A new output file is created each time the number of processed lines reaches the configured batch size. Raises a ValueError if the file path is invalid.
         """
         if fpath != "" and os.path.isfile(fpath):
@@ -139,7 +139,7 @@ class ScriptGenerator:
     def line_generator(self, uinput: Iterable[str]) -> Generator[str, None, None]:
         """
         Generates script lines from input strings using process_line, appending extra arguments if set.
-        
+
         Iterates over each non-empty input line, extracts and tracks domains, processes the line into a script command, and yields the result with any additional arguments appended.
         """
         new_line: Optional[str] = ""

@@ -142,7 +142,7 @@ def test_write_output(
 ) -> None:
     """
     Tests that the write_output method writes script strings to a file as expected.
-    
+
     Verifies that the output file is opened in write mode and that each script string is written with a newline appended.
     """
     mock_open_func = mock_open()

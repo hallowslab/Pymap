@@ -39,3 +39,5 @@ config.dev.json
 # Don't track version since we support 3.10+, poetry will check requirements and constraints on install
 .python-version
 pymap_logs/
+.pgpass
+.pg_service.conf
