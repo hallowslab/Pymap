@@ -3,12 +3,17 @@ services:
     volumes:
       - static_root_dev:${STATIC_ROOT}
 
+  rabbitmq:
+    volumes:
+      - rabbitmq_data_dev:/var/lib/rabbitmq
+
   celery-worker:
     environment:
       - DJANGO_ENV=development
     volumes:
       - ./src:/home/celery/app
-      - shared_logs:${PYMAP_LOGDIR}
+      - shared_logs_dev:${PYMAP_LOGDIR}
+      - static_root_dev:$STATIC_ROOT
     deploy:
       mode: global
     # Overrides default command so things don't shut down after the process ends.
@@ -36,3 +41,4 @@ volumes:
   shared_logs_dev:
   pgdata_dev:
   static_root_dev:
+  rabbitmq_data_dev:
