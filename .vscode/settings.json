@@ -1,8 +1,0 @@
-{
-    "pylint.cwd": "${workspaceFolder}/src/",
-    "mypy-type-checker.cwd": "${workspaceFolder}/src/",
-    "python.analysis.typeCheckingMode": "basic",
-    "python.terminal.activateEnvInCurrentTerminal": true,
-    "python.terminal.activateEnvironment": true,
-    "mypy-type-checker.importStrategy": "fromEnvironment",
-}
