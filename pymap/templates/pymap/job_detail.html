@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Pymap - Job {{ job.id }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav class="breadcrumb" aria-label="breadcrumbs">
+        <ul>
+            <li><a href="{% url 'pymap:job-list' %}">Jobs</a></li>
+            <li class="is-active"><a href="#" aria-current="page">{{ job.id|truncatechars:13 }}</a></li>
+        </ul>
+    </nav>
+
+    <h1 class="title">
+        Job Details
+        <span
+            class="tag ml-2 {% if job.status == 'SUCCESS' %}is-success{% elif job.status == 'FAILED' %}is-danger{% elif job.status == 'RUNNING' %}is-info{% else %}is-light{% endif %} is-medium">
+            {{ job.status }}
+        </span>
+    </h1>
+
+    <div class="box">
+        <div class="columns">
+            <div class="column">
+                <p><strong>Source:</strong> {{ job.source_host }}</p>
+                <p><strong>Destination:</strong> {{ job.dest_host }}</p>
+            </div>
+            <div class="column">
+                <p><strong>Created:</strong> {{ job.created_at|date:"Y-m-d H:i:s" }}</p>
+                <p><strong>Updated:</strong> {{ job.updated_at|date:"Y-m-d H:i:s" }}</p>
+            </div>
+        </div>
+        {% if job.additional_args %}
+        <p><strong>Additional Args:</strong> <code>{{ job.additional_args }}</code></p>
+        {% endif %}
+    </div>
+
+    <h2 class="subtitle mt-5">Tasks ({{ tasks.count }})</h2>
+
+    {% if tasks %}
+    <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Source User</th>
+                <th>Destination User</th>
+                <th>Domains</th>
+                <th>Status</th>
+                <th>Log File</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.id|truncatechars:13 }}</td>
+                <td>{{ task.user1 }}</td>
+                <td>{{ task.user2 }}</td>
+                <td>
+                    {# Domains are extracted by imapsync-scriptgen generate() and stored in task metadata #}
+                    {# Display domain parts from usernames for quick reference #}
+                    {% with task.user1 as u1 %}{% with task.user2 as u2 %}
+                    <span class="tag is-light">{{ u1|slice:"0:-1"|cut:"@"|default:u1 }}</span>
+                    {% if u1 != u2 %}
+                    <span class="tag is-light">{{ u2|slice:"0:-1"|cut:"@"|default:u2 }}</span>
+                    {% endif %}
+                    {% endwith %}{% endwith %}
+                </td>
+                <td>
+                    <span
+                        class="tag {% if task.status == 'SUCCESS' %}is-success{% elif task.status == 'FAILED' %}is-danger{% elif task.status == 'RUNNING' %}is-info{% else %}is-light{% endif %}">
+                        {{ task.status }}
+                    </span>
+                </td>
+                <td>
+                    {% if task.logfile %}
+                    <code>{{ task.logfile }}</code>
+                    {% else %}
+                    <span class="has-text-grey">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="notification is-light">
+        <p>No tasks for this job.</p>
+    </div>
+    {% endif %}
+
+    <div class="mt-5">
+        <a href="{% url 'pymap:job-list' %}" class="button">
+            <span class="icon"><i class="fas fa-arrow-left"></i></span>
+            <span>Back to Jobs</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

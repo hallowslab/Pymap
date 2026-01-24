@@ -1,61 +1,96 @@
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render, get_object_or_404
-from .models import MigrationJob, MigrationTask
+import uuid
+from django.shortcuts import render, get_object_or_404, redirect
+from django.core.cache import cache
+from django.contrib import messages
 
-# Create your views here.
+from .models import MigrationJob, MigrationTask
+from .tasks import run_imap_sync
 
 
 def index(request):
-    return render(request, "pymap_index.html")
-
-
-def job_detail(request, job_id):
-    job = get_object_or_404(MigrationJob, id=job_id)
-    tasks = job.tasks.all()
-    return render(request, "job_detail.html", {"job": job, "tasks": tasks})
+    """PYMAP home page."""
+    return render(request, "pymap/pymap_index.html")
 
 
 def job_list(request):
+    """List all migration jobs, newest first."""
     jobs = MigrationJob.objects.all().order_by("-created_at")
+    return render(request, "pymap/jobs_list.html", {"jobs": jobs})
 
-    return render(request, "job_list.html", {"jobs": jobs})
+
+def job_detail(request, job_id):
+    """Show job info and all associated tasks."""
+    job = get_object_or_404(MigrationJob, id=job_id)
+    tasks = job.tasks.all()
+    return render(request, "pymap/job_detail.html", {"job": job, "tasks": tasks})
 
 
 def submit_job(request):
-    if request.method == "POST":
-        source_host = request.POST["source_host"]
-        dest_host = request.POST["dest_host"]
-        additional_args = request.POST.get("additional_args", "")
-        credentials_text = request.POST["credentials"]  # multiline input
+    """
+    Form for creating a new migration job.
 
+    Credentials format (one per line):
+        user1@domain.com password1
+        user1@domain.com password1 user2@domain.com password2
+
+    If only one user/password is provided, it's used for both source and destination.
+    """
+    if request.method == "POST":
+        source_host = request.POST.get("source_host", "").strip()
+        dest_host = request.POST.get("dest_host", "").strip()
+        additional_args = request.POST.get("additional_args", "").strip()
+        credentials_text = request.POST.get("credentials", "")
+
+        # Validate required fields
+        if not source_host or not dest_host:
+            messages.error(request, "Source and destination hosts are required.")
+            return render(request, "pymap/job_create.html")
+
+        if not credentials_text.strip():
+            messages.error(request, "At least one credential line is required.")
+            return render(request, "pymap/job_create.html")
+
+        # Create the job
         job = MigrationJob.objects.create(
             source_host=source_host,
             dest_host=dest_host,
-            additional_args=additional_args,
+            additional_args=additional_args or None,
         )
 
-        for line in credentials_text.splitlines():
+        # Parse credential lines and create tasks
+        valid_tasks_count = 0
+        invalid_lines = []
+
+        for line_num, line in enumerate(credentials_text.splitlines(), start=1):
             line = line.strip()
             if not line:
                 continue
 
             parts = line.split()
             if len(parts) < 2:
-                continue  # skip invalid lines
+                invalid_lines.append(
+                    f"Line {line_num}: insufficient data (need at least user and password)"
+                )
+                continue
 
+            # Parse credentials: user1 pass1 [user2 pass2]
             user1, pass1 = parts[0], parts[1]
             if len(parts) >= 4:
                 user2, pass2 = parts[2], parts[3]
             else:
+                # Same credentials for source and destination
                 user2, pass2 = user1, pass1
 
+            # Store credentials in Redis cache with TTL (1 hour)
+            # Never pass plaintext passwords in Celery arguments
             credential_ref = str(uuid.uuid4())
             cache.set(
                 f"imap_secret:{credential_ref}",
-                {"user1": pass1, "user2": pass2},
+                {"pass1": pass1, "pass2": pass2},
                 timeout=3600,
             )
 
+            # Create the migration task
             task = MigrationTask.objects.create(
                 job=job,
                 user1=user1,
@@ -64,8 +99,22 @@ def submit_job(request):
                 logfile=f"{job.id}_{user1}.log",
             )
 
-            run_imap_sync.delay(str(task.id), source_host, dest_host, additional_args)
+            # Launch Celery task - only pass task.id and credential_ref (no plaintext)
+            run_imap_sync.delay(
+                str(task.id), source_host, dest_host, additional_args or ""
+            )
+            valid_tasks_count += 1
 
-        return redirect("job_detail", job_id=job.id)
+        # Provide feedback
+        if valid_tasks_count > 0:
+            messages.success(request, f"Job created with {valid_tasks_count} task(s).")
 
-    return render(request, "submit_job.html")
+        if invalid_lines:
+            messages.warning(
+                request,
+                f"Skipped {len(invalid_lines)} invalid line(s): {'; '.join(invalid_lines)}",
+            )
+
+        return redirect("pymap:job-detail", job_id=job.id)
+
+    return render(request, "pymap/job_create.html")

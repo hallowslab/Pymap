@@ -77,6 +77,23 @@ django = "*"
 typing-extensions = "*"
 
 [[package]]
+name = "imapsync-scriptgen"
+version = "1.0.0-rc1"
+description = "Generate imapsync command scripts from user credential lists."
+optional = true
+python-versions = ">=3.12,<4.0"
+groups = ["main"]
+markers = "extra == \"imapsync-dev\""
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/hallowslab/imapsync-scriptgen.git"
+reference = "dev"
+resolved_reference = "f887d50af8535cbcdaa8aef11a39016ac0757ac2"
+
+[[package]]
 name = "mypy"
 version = "1.18.2"
 description = "Optional static typing for Python"
@@ -213,7 +230,10 @@ files = [
     {file = "tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9"},
 ]
 
+[extras]
+imapsync-dev = ["imapsync-scriptgen"]
+
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.13"
-content-hash = "41816d6447bd2f7a5268c4ce972cc53a9aa35edf454f035e1a89d056ba1c5038"
+python-versions = ">=3.13,<4.0"
+content-hash = "4dd51257714cb306c2d3e4ded2a6ac96f7f016b961b26719375f3a2f2668fa8f"

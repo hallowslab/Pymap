@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Pymap - Jobs{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Messages -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div
+            class="notification {% if message.tags == 'error' %}is-danger{% elif message.tags == 'warning' %}is-warning{% elif message.tags == 'success' %}is-success{% else %}is-info{% endif %} is-light">
+            <button class="delete" onclick="this.parentElement.remove()"></button>
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="level">
+        <div class="level-left">
+            <h1 class="title">Migration Jobs</h1>
+        </div>
+        <div class="level-right">
+            <a href="{% url 'pymap:job-create' %}" class="button is-primary">
+                <span class="icon"><i class="fas fa-plus"></i></span>
+                <span>New Job</span>
+            </a>
+        </div>
+    </div>
+
+    {% if jobs %}
+    <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Tasks</th>
+                <th>Status</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>
+                    <a href="{% url 'pymap:job-detail' job.id %}">
+                        {{ job.id|truncatechars:13 }}
+                    </a>
+                </td>
+                <td>{{ job.source_host }}</td>
+                <td>{{ job.dest_host }}</td>
+                <td>{{ job.tasks.count }}</td>
+                <td>
+                    <span
+                        class="tag {% if job.status == 'SUCCESS' %}is-success{% elif job.status == 'FAILED' %}is-danger{% elif job.status == 'RUNNING' %}is-info{% else %}is-light{% endif %}">
+                        {{ job.status }}
+                    </span>
+                </td>
+                <td>{{ job.created_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="notification is-light">
+        <p>No jobs yet. <a href="{% url 'pymap:job-create' %}">Create your first migration job</a>.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
