@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Pymap - Job {{ job.id }}{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title">
+            Job {{ job.id }}
+        </h1>
+
+        <div class="box">
+            <p><strong>Source:</strong> {{ job.source_host }}</p>
+            <p><strong>Destination:</strong> {{ job.destination_host }}</p>
+            <p><strong>Status:</strong> {{ job.status }}</p>
+            <p><strong>Created:</strong> {{ job.created_at }}</p>
+        </div>
+
+        <h2 class="subtitle">Tasks</h2>
+
+        {% if tasks %}
+        <table class="table is-fullwidth is-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Users</th>
+                    <th>Domains</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.id }}</td>
+                    <td>{{ task.user1 }} → {{ task.user2 }}</td>
+                    <td>{{ task.domains }}</td>
+                    <td>{{ task.status }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No tasks for this job.</p>
+        {% endif %}
+
+        <a href="{% url 'pymap:job_list' %}" class="button mt-4">
+            Back to Jobs
+        </a>
+    </div>
+</section>
+{% endblock %}

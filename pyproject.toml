@@ -1,6 +1,6 @@
 [project]
 name = "pymap"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = [
     {name = "hallowslab",email = "hallows.tech.lab@gmail.com"}
@@ -15,3 +15,11 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "django-stubs[compatible-mypy] (>=5.2.7,<6.0.0)",
+]
+
+[project.optional-dependencies]
+imapsync-dev = [ "imapsync-scriptgen @ git+https://github.com/hallowslab/imapsync-scriptgen.git@dev" ]
