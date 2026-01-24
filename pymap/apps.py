@@ -6,3 +6,5 @@ class PymapConfig(AppConfig):
     name = "pymap"
     verbose_name = "Pymap"
     is_modular = True
+    root_url = "/PYMAP"
+    icon = "📈"
