@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Pymap - Task Log {{ task.id }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav class="breadcrumb" aria-label="breadcrumbs">
+        <ul>
+            <li><a href="{% url 'pymap:job-list' %}">Jobs</a></li>
+            <li><a href="{% url 'pymap:job-detail' task.job.id %}">JOB::{{ task.job.id|truncatechars:13 }}</a></li>
+            <li class="is-active"><a href="#" aria-current="page">TASK::{{ task.id|truncatechars:13 }}</a></li>
+        </ul>
+    </nav>
+
+    <div class="level">
+        <div class="level-left">
+            <div class="level-item">
+                <h1 class="title mb-0">Task Log</h1>
+            </div>
+            <div class="level-item">
+                <span class="tag ml-2 {% if task.status == 'SUCCESS' %}is-success{% elif task.status == 'FAILED' %}is-danger{% elif task.status == 'RUNNING' %}is-info{% else %}is-light{% endif %} is-medium">
+                    {{ task.status }}
+                </span>
+            </div>
+        </div>
+        <div class="level-right">
+            <div class="level-item">
+                <a href="{% url 'pymap:job-detail' task.job.id %}" class="button">
+                    <span class="icon"><i class="fas fa-arrow-left"></i></span>
+                    <span>Back to Job</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="box mt-4">
+        <p><strong>Source User:</strong> {{ task.user1 }}</p>
+        <p><strong>Destination User:</strong> {{ task.user2 }}</p>
+        <p>
+            <strong>Log File Path:</strong>
+            {% if task.log_path %}
+            <a href="{% url 'pymap:task-log-download' task.id %}">
+                {{ task.log_path }}
+            </a>
+            {% else %}
+            <code>-</code>
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="level mt-5">
+        <div class="level-left">
+            <h2 class="subtitle mb-0">Output</h2>
+        </div>
+        <div class="level-right">
+            <div class="field is-grouped is-grouped-multiline mb-0">
+                <div class="control">
+                    <form method="get" action="" class="field has-addons mb-0">
+                        <div class="control">
+                            <span class="button is-static is-small">Lines</span>
+                        </div>
+                        <div class="control">
+                            <input class="input is-small" type="number" name="lines" min="1"
+                                value="{{ line_limit }}" placeholder="All" style="width: 5rem;">
+                        </div>
+                        <div class="control">
+                            <button type="submit" class="button is-info is-small">Apply</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="control">
+                    <div class="field has-addons mb-0">
+                        <div class="control">
+                            <button type="button" id="auto-refresh-toggle" class="button is-small is-warning">
+                                Auto-refresh Off
+                            </button>
+                        </div>
+                        <div class="control">
+                            <input id="auto-refresh-interval" class="input is-small" type="number" min="1" value="5"
+                                aria-label="Auto-refresh interval in seconds" style="width: 5rem;">
+                        </div>
+                        <div class="control">
+                            <span class="button is-static is-small">seconds</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="box p-0" style="background-color: #2b2b2b;">
+        <pre id="task-log-output" style="max-height: 600px; overflow-y: auto; background-color: transparent; color: #e0e0e0; border: none;" class="p-4"><code class="language-plaintext">{{ log_content }}</code></pre>
+    </div>
+
+</div>
+
+<script>
+    (function () {
+        const enabledKey = "pymapTaskLogAutoRefreshEnabled";
+        const intervalKey = "pymapTaskLogAutoRefreshInterval";
+        const toggle = document.getElementById("auto-refresh-toggle");
+        const intervalInput = document.getElementById("auto-refresh-interval");
+        const logOutput = document.getElementById("task-log-output");
+        let refreshTimer = null;
+
+        if (logOutput) {
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function getIntervalMs() {
+            const seconds = Number.parseInt(intervalInput.value, 10);
+            return Math.max(seconds || 5, 1) * 1000;
+        }
+
+        function setToggleState(enabled) {
+            toggle.textContent = enabled ? "Auto-refresh On" : "Auto-refresh Off";
+            toggle.classList.toggle("is-success", enabled);
+            toggle.classList.toggle("is-warning", !enabled);
+        }
+
+        function stopRefresh() {
+            window.clearTimeout(refreshTimer);
+            refreshTimer = null;
+            localStorage.setItem(enabledKey, "false");
+            setToggleState(false);
+        }
+
+        function startRefresh() {
+            window.clearTimeout(refreshTimer);
+            localStorage.setItem(enabledKey, "true");
+            localStorage.setItem(intervalKey, intervalInput.value);
+            setToggleState(true);
+            refreshTimer = window.setTimeout(function () {
+                window.location.reload();
+            }, getIntervalMs());
+        }
+
+        intervalInput.value = localStorage.getItem(intervalKey) || intervalInput.value;
+        setToggleState(localStorage.getItem(enabledKey) === "true");
+
+        if (localStorage.getItem(enabledKey) === "true") {
+            startRefresh();
+        }
+
+        toggle.addEventListener("click", function () {
+            if (localStorage.getItem(enabledKey) === "true") {
+                stopRefresh();
+            } else {
+                startRefresh();
+            }
+        });
+
+        intervalInput.addEventListener("change", function () {
+            intervalInput.value = Math.max(Number.parseInt(intervalInput.value, 10) || 5, 1);
+            localStorage.setItem(intervalKey, intervalInput.value);
+            if (localStorage.getItem(enabledKey) === "true") {
+                startRefresh();
+            }
+        });
+    })();
+</script>
+{% endblock %}

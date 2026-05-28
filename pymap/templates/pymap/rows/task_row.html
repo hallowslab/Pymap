@@ -1,0 +1,47 @@
+<tr>
+    <td>{{ item.id|truncatechars:13 }}</td>
+    <td>{{ item.user1 }}</td>
+    <td>{{ item.user2 }}</td>
+    <td>
+        <span class="tag is-light">{{ item.user1_domain }}</span>
+        {% if item.user1_domain != item.user2_domain %}
+        <span class="tag is-light">{{ item.user2_domain }}</span>
+        {% endif %}
+    </td>
+    <td>
+        <span
+            class="tag {% if item.status == 'SUCCESS' %}is-success{% elif item.status == 'FAILED' %}is-danger{% elif item.status == 'RUNNING' %}is-info{% elif item.status == 'CHECK' %}is-warning{% else %}is-light{% endif %}">
+            {{ item.status }}
+        </span>
+    </td>
+    <td>
+        {% if item.logfile %}
+        <code>{{ item.logfile }}</code>
+        {% else %}
+        <span class="has-text-grey">—</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="buttons">
+            {% if item.logfile %}
+            <a href="{% url 'pymap:task-log' item.id %}" class="button is-info is-small">
+                <span class="icon is-small"><i class="fas fa-file-alt"></i></span>
+                <span>View Log</span>
+            </a>
+            {% endif %}
+
+            {% if item.status == 'RUNNING' and not item.terminated %}
+            <form action="{% url 'pymap:terminate-task' item.id %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="button is-danger is-small"
+                    onclick="return confirm('Are you sure you want to terminate this task?')">
+                    <span class="icon is-small"><i class="fas fa-stop"></i></span>
+                    <span>Terminate</span>
+                </button>
+            </form>
+            {% elif item.terminated %}
+            <span class="tag is-warning">Terminating...</span>
+            {% endif %}
+        </div>
+    </td>
+</tr>

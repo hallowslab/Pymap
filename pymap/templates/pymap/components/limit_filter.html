@@ -1,0 +1,23 @@
+<form method="get" action="" class="is-inline-block">
+    {% for key, value in request.GET.items %}
+    {% if key != 'limit' %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endif %}
+    {% endfor %}
+    <div class="field has-addons mb-0">
+        <div class="control">
+            <span class="button is-static is-small">Show:</span>
+        </div>
+        <div class="control">
+            <div class="select is-small">
+                <select name="limit" onchange="this.form.submit()">
+                    <option value="10" {% if current_limit == '10' or not current_limit %}selected{% endif %}>10</option>
+                    <option value="25" {% if current_limit == '25' %}selected{% endif %}>25</option>
+                    <option value="50" {% if current_limit == '50' %}selected{% endif %}>50</option>
+                    <option value="100" {% if current_limit == '100' %}selected{% endif %}>100</option>
+                    <option value="all" {% if current_limit == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</form>

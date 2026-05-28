@@ -1,0 +1,18 @@
+<tr>
+    <td>
+        <a href="{% url 'pymap:job-detail' item.id %}">
+            {{ item.id|truncatechars:13 }}
+        </a>
+    </td>
+    <td>{{ item.custom_identifier|default:"-" }}</td>
+    <td>{{ item.source_host }}</td>
+    <td>{{ item.dest_host }}</td>
+    <td>{{ item.tasks.count }}</td>
+    <td>
+        <span
+            class="tag {% if item.status == 'SUCCESS' %}is-success{% elif item.status == 'FAILED' %}is-danger{% elif item.status == 'RUNNING' %}is-info{% elif item.status == 'CHECK' %}is-warning{% else %}is-light{% endif %}">
+            {{ item.status }}
+        </span>
+    </td>
+    <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+</tr>

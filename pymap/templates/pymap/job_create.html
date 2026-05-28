@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% load static %}
+{% block favicon %}
+    <link rel="icon" href="{% static 'images/pymap.ico' %}" type="image/x-icon">
+{% endblock %}
 
 {% block title %}Pymap - Create Job{% endblock %}
 
@@ -44,6 +48,14 @@
                         <p class="help">IMAP server hostname for the destination mailboxes</p>
                     </div>
                 </div>
+            </div>
+
+            <div class="field">
+                <label class="label">Custom Identifier (optional)</label>
+                <div class="control">
+                    <input class="input" type="text" name="custom_identifier" placeholder="e.g. Migration Phase 1">
+                </div>
+                <p class="help">An optional identifier to easily search for this job later</p>
             </div>
 
             <div class="field">
