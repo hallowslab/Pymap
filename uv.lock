@@ -60,8 +60,8 @@ wheels = [
 
 [[package]]
 name = "imapsync-scriptgen"
-version = "1.0.0rc1"
-source = { git = "https://github.com/hallowslab/imapsync-scriptgen.git?rev=dev#f887d50af8535cbcdaa8aef11a39016ac0757ac2" }
+version = "1.0.1"
+source = { git = "https://github.com/hallowslab/imapsync-scriptgen.git?rev=main#60ff2a369d531249603a301f9a9f3eb641db1f7a" }
 
 [[package]]
 name = "librt"
@@ -157,14 +157,10 @@ wheels = [
 
 [[package]]
 name = "pymap"
-version = "0.3.1"
+version = "0.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "django" },
-]
-
-[package.optional-dependencies]
-imapsync-dev = [
     { name = "imapsync-scriptgen" },
 ]
 
@@ -176,9 +172,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = ">=5.2.7,<6.0.0" },
-    { name = "imapsync-scriptgen", marker = "extra == 'imapsync-dev'", git = "https://github.com/hallowslab/imapsync-scriptgen.git?rev=dev" },
+    { name = "imapsync-scriptgen", git = "https://github.com/hallowslab/imapsync-scriptgen.git?rev=main" },
 ]
-provides-extras = ["imapsync-dev"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "django-stubs", extras = ["compatible-mypy"], specifier = ">=5.2.7,<6.0.0" }]
