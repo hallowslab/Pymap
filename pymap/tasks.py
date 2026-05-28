@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.conf import settings
 from celery import shared_task
 from django.core.cache import cache
+
 try:
     from imapsync_scriptgen.generator import generate, ImapSyncSpec
 except ImportError:
@@ -76,7 +77,9 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
         task.save()
 
         # Update job status to RUNNING if it's still PENDING
-        MigrationJob.objects.filter(id=job.id, status="PENDING").update(status="RUNNING")
+        MigrationJob.objects.filter(id=job.id, status="PENDING").update(
+            status="RUNNING"
+        )
 
         if not generate or not ImapSyncSpec:
             logger.error("Task %s: imapsync_scriptgen is not installed", task_id)
@@ -101,7 +104,6 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
         cmd = generate(
             spec, runtime_secrets={"pw1": secrets["pass1"], "pw2": secrets["pass2"]}
         )
-
 
         logger.info("Task %s: Starting imapsync", task_id)
 

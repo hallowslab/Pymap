@@ -9,7 +9,9 @@ class PymapConfig(AppConfig):
     verbose_name = "Pymap"
     is_modular = True
     root_url = "/PYMAP"
-    icon = mark_safe('<img src="/static/pymap/pymap_sq.png" alt="Pymap" style="height:1.2em; vertical-align:middle;">')
+    icon = mark_safe(
+        '<img src="/static/pymap/pymap_sq.png" alt="Pymap" style="height:1.2em; vertical-align:middle;">'
+    )
 
     def get_dashboard_stats(self):
         from .models import MigrationJob, MigrationTask

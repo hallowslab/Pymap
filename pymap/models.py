@@ -92,7 +92,9 @@ class MigrationTask(models.Model):
     def log_path(self):
         if not self.logfile:
             return None
-        return os.path.join(settings.ARKA_LOGDIR, "pymap", str(self.job.id), self.logfile)
+        return os.path.join(
+            settings.ARKA_LOGDIR, "pymap", str(self.job.id), self.logfile
+        )
 
     @property
     def user1_domain(self):

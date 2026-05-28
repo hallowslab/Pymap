@@ -19,6 +19,7 @@ from .models import MigrationTask, MigrationJob
 from .tasks import run_imap_sync
 from .utils import build_logfile
 
+
 @login_required
 def job_list(request: HttpRequest) -> HttpResponse:
     """List migration jobs, filtered by user and search terms, newest first."""
@@ -87,6 +88,7 @@ def job_list(request: HttpRequest) -> HttpResponse:
         },
     )
 
+
 @login_required
 def job_detail(request: HttpRequest, job_id) -> HttpResponse:
     """Show job info and all associated tasks."""
@@ -126,6 +128,7 @@ def job_detail(request: HttpRequest, job_id) -> HttpResponse:
             "search_enabled": False,
         },
     )
+
 
 @login_required
 def submit_job(request: HttpRequest) -> HttpResponse | HttpResponseRedirect:
@@ -226,6 +229,7 @@ def submit_job(request: HttpRequest) -> HttpResponse | HttpResponseRedirect:
 
     return render(request, "pymap/job_create.html")
 
+
 @login_required
 def terminate_task(request: HttpRequest, task_id) -> HttpResponseRedirect:
     """Mark a migration task as terminated."""
@@ -243,6 +247,7 @@ def terminate_task(request: HttpRequest, task_id) -> HttpResponseRedirect:
         messages.warning(request, f"Task for {task.user1} is not running.")
 
     return redirect("pymap:job-detail", job_id=task.job.id)
+
 
 @login_required
 def view_task_log(request: HttpRequest, task_id) -> HttpResponse:
@@ -277,6 +282,7 @@ def view_task_log(request: HttpRequest, task_id) -> HttpResponse:
         "pymap/task_log.html",
         {"task": task, "log_content": log_content, "line_limit": line_limit},
     )
+
 
 @login_required
 def download_task_log(request: HttpRequest, task_id) -> FileResponse:
