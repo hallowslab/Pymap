@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{% extends "pymap/base.html" %}
+{% load static %}
 
 {% block title %}Pymap - Jobs{% endblock %}
 
@@ -7,11 +8,13 @@
 
     <div class="level">
         <div class="level-left">
-            <h1 class="title">Migration Jobs</h1>
+            <h1 class="title">
+                <img src="{% static 'pymap/pymap.png' %}" alt="Pymap" style="height:2.5rem; margin-right:0.75rem; vertical-align:middle;">
+                Migration Jobs
+            </h1>
         </div>
         <div>
             <a href="{% url 'pymap:job-create' %}" class="button is-info">
-                <span class="icon"><i class="fas fa-plus"></i></span>
                 <span>New Job</span>
             </a>
         </div>
