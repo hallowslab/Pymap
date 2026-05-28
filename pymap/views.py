@@ -249,13 +249,20 @@ def terminate_task(request: HttpRequest, task_id) -> HttpResponseRedirect:
     return redirect("pymap:job-detail", job_id=task.job.id)
 
 
+DEFAULT_TASK_LOG_LINES = 50
+
+
 @login_required
 def view_task_log(request: HttpRequest, task_id) -> HttpResponse:
     """View the logfile contents of a single task."""
     task = get_object_or_404(MigrationTask, id=task_id)
 
     log_content = ""
-    line_limit = request.GET.get("lines", "").strip()
+    if "lines" not in request.GET:
+        line_limit = str(DEFAULT_TASK_LOG_LINES)
+    else:
+        line_limit = request.GET.get("lines", "").strip()
+
     task_log_path = task.log_path
     if task_log_path and Path(task_log_path).exists():
         try:
