@@ -20,8 +20,12 @@ from .utils import build_logfile
 logger = logging.getLogger("pymap.tasks")
 
 
-def _finish_task(task: MigrationTask, status: str) -> None:
+def _finish_task(
+    task: MigrationTask, status: str, exit_code: int | None = None
+) -> None:
     task.status = status
+    if exit_code is not None:
+        task.exit_code = exit_code
     task.end_time = timezone.now()
     # Model uses auto_now_add on task.start_time
     if task.start_time:
@@ -130,7 +134,7 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
 
         # Polling loop for termination and completion
         while process.poll() is None:
-            # Check for Celery revocation
+            task.refresh_from_db(fields=["terminated"])
             if task.terminated:
                 logger.warning(
                     "Task %s: Revocation detected. Escalating termination for process %d",
@@ -156,7 +160,8 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
                     )
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
 
-                _finish_task(task, "FAILED")
+                exit_code = process.returncode if process.poll() is not None else None
+                _finish_task(task, "FAILED", exit_code=exit_code)
                 job.update_status()
                 return
 
@@ -164,19 +169,19 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
             # Wait before next poll
             time.sleep(5)
 
-        # Check exit code
-        if process.returncode == 0:
+        exit_code = process.returncode
+        if exit_code == 0:
             logger.info("Task %s: imapsync completed successfully", task_id)
             finish_status = "SUCCESS"
         else:
             logger.error(
                 "Task %s: imapsync failed with exit code %d",
                 task_id,
-                process.returncode,
+                exit_code,
             )
             finish_status = "FAILED"
 
-        _finish_task(task, finish_status)
+        _finish_task(task, finish_status, exit_code=exit_code)
         job.update_status()
 
     except Exception as e:
