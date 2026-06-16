@@ -15,6 +15,15 @@
         </span>
     </td>
     <td>
+        {% if item.exit_code is not None and item.exit_code != 0 %}
+        <span class="tag is-danger" title="{{ item.exit_code_label }}">
+            {{ item.exit_code }} — {{ item.exit_code_label }}
+        </span>
+        {% else %}
+        <span class="has-text-grey">—</span>
+        {% endif %}
+    </td>
+    <td>
         {% if item.logfile %}
         <code>{{ item.logfile }}</code>
         {% else %}
@@ -25,7 +34,6 @@
         <div class="buttons">
             {% if item.logfile %}
             <a href="{% url 'pymap:task-log' item.id %}" class="button is-info is-small">
-                <span class="icon is-small"><i class="fas fa-file-alt"></i></span>
                 <span>View Log</span>
             </a>
             {% endif %}
@@ -35,12 +43,11 @@
                 {% csrf_token %}
                 <button type="submit" class="button is-danger is-small"
                     onclick="return confirm('Are you sure you want to terminate this task?')">
-                    <span class="icon is-small"><i class="fas fa-stop"></i></span>
                     <span>Terminate</span>
                 </button>
             </form>
             {% elif item.terminated %}
-            <span class="tag is-warning">Terminating...</span>
+            <span class="tag is-danger">Terminated</span>
             {% endif %}
         </div>
     </td>

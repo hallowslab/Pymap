@@ -35,6 +35,12 @@
     <div class="box mt-4">
         <p><strong>Source User:</strong> {{ task.user1 }}</p>
         <p><strong>Destination User:</strong> {{ task.user2 }}</p>
+        {% if task.exit_code is not None and task.exit_code != 0 %}
+        <p>
+            <strong>imapsync Exit Code:</strong>
+            <span class="tag is-danger">{{ task.exit_code }} — {{ task.exit_code_label }}</span>
+        </p>
+        {% endif %}
         <p>
             <strong>Log File Path:</strong>
             {% if task.log_path %}

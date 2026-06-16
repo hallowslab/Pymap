@@ -42,6 +42,17 @@
         <div class="level-left">
             <h2 class="subtitle mb-0">Tasks ({{ page_obj.paginator.count }})</h2>
         </div>
+        {% if has_stoppable_tasks %}
+        <div class="level-right">
+            <form action="{% url 'pymap:terminate-all-tasks' job.id %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="button is-danger"
+                    onclick="return confirm('Terminate all running and pending tasks in this job?')">
+                    <span>Terminate All Tasks</span>
+                </button>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     {% include "components/list/list.html" %}
