@@ -8,6 +8,11 @@ urlpatterns = [
     path("jobs/create/", views.submit_job, name="job-create"),
     path("jobs/<uuid:job_id>/", views.job_detail, name="job-detail"),
     path(
+        "jobs/<uuid:job_id>/terminate-all/",
+        views.terminate_all_tasks,
+        name="terminate-all-tasks",
+    ),
+    path(
         "tasks/<uuid:task_id>/terminate/", views.terminate_task, name="terminate-task"
     ),
     path("tasks/<uuid:task_id>/log/", views.view_task_log, name="task-log"),

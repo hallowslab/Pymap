@@ -114,6 +114,7 @@ def job_detail(request: HttpRequest, job_id) -> HttpResponse:
                 "Destination User",
                 "Domains",
                 "Status",
+                "Exit Code",
                 "Log File",
                 "Actions",
             ],
@@ -126,6 +127,9 @@ def job_detail(request: HttpRequest, job_id) -> HttpResponse:
                 "has_previous": page_obj.has_previous(),
             },
             "search_enabled": False,
+            "has_stoppable_tasks": job.tasks.filter(
+                status__in=["RUNNING", "PENDING"], terminated=False
+            ).exists(),
         },
     )
 
@@ -247,6 +251,32 @@ def terminate_task(request: HttpRequest, task_id) -> HttpResponseRedirect:
         messages.warning(request, f"Task for {task.user1} is not running.")
 
     return redirect("pymap:job-detail", job_id=task.job.id)
+
+
+@login_required
+def terminate_all_tasks(request: HttpRequest, job_id) -> HttpResponseRedirect:
+    """Mark all running or pending tasks in a job as terminated."""
+    job = get_object_or_404(MigrationJob, id=job_id)
+    if job.owner != request.user and not request.user.is_superuser:
+        messages.error(
+            request, "You do not have permission to terminate tasks for this job."
+        )
+        return redirect("pymap:job-list")
+
+    stoppable = job.tasks.filter(
+        status__in=["RUNNING", "PENDING"], terminated=False
+    )
+    count = stoppable.count()
+
+    if count:
+        stoppable.update(terminated=True)
+        messages.success(
+            request, f"Termination requested for {count} task(s)."
+        )
+    else:
+        messages.warning(request, "No running or pending tasks to terminate.")
+
+    return redirect("pymap:job-detail", job_id=job.id)
 
 
 DEFAULT_TASK_LOG_LINES = 50
