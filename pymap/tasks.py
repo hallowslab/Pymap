@@ -128,9 +128,8 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
         try:
             process = subprocess.Popen(
                 cmd.argv,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
         except Exception as e:
