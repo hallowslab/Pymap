@@ -1,12 +1,12 @@
 import logging
 import subprocess
-import time
 import os
 import signal
 import socket
 from django.utils import timezone
 from django.conf import settings
 from celery import shared_task
+from celery.signals import worker_shutting_down
 from django.core.cache import cache
 
 try:
@@ -18,6 +18,17 @@ from .models import MigrationTask, MigrationJob
 from .utils import build_logfile
 
 logger = logging.getLogger("pymap.tasks")
+
+_active_processes: set[int] = set()
+
+
+@worker_shutting_down.connect
+def _cleanup_orphans(**kwargs):
+    for pid in list(_active_processes):
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass
 
 
 def _finish_task(
@@ -132,57 +143,64 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
         task.worker_hostname = socket.gethostname()
         task.save()
 
-        # Polling loop for termination and completion
-        while process.poll() is None:
-            task.refresh_from_db(fields=["terminated"])
-            if task.terminated:
-                logger.warning(
-                    "Task %s: Revocation detected. Escalating termination for process %d",
+        _active_processes.add(process.pid)
+
+        try:
+            while True:
+                try:
+                    process.wait(timeout=5)
+                    break
+                except subprocess.TimeoutExpired:
+                    task.refresh_from_db(fields=["terminated"])
+                    if task.terminated:
+                        logger.warning(
+                            "Task %s: Revocation detected. Escalating termination for process %d",
+                            task_id,
+                            process.pid,
+                        )
+
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+
+                        try:
+                            process.wait(timeout=30)
+                        except subprocess.TimeoutExpired:
+                            pass
+
+                        if process.poll() is None:
+                            logger.error(
+                                "Task %s: Process %d didn't stop with SIGTERM. Sending SIGKILL.",
+                                task_id,
+                                process.pid,
+                            )
+                            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+
+                        exit_code = process.returncode if process.poll() is not None else None
+                        _finish_task(task, "FAILED", exit_code=exit_code)
+                        job.update_status()
+                        return
+
+            exit_code = process.returncode
+            if exit_code == 0:
+                logger.info("Task %s: imapsync completed successfully", task_id)
+                finish_status = "SUCCESS"
+            else:
+                logger.error(
+                    "Task %s: imapsync failed with exit code %d",
                     task_id,
-                    process.pid,
+                    exit_code,
                 )
+                finish_status = "FAILED"
 
-                # SIGTERM first
-                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            _finish_task(task, finish_status, exit_code=exit_code)
+            job.update_status()
 
-                # Wait for up to 30s
-                for _ in range(30):
-                    if process.poll() is not None:
-                        break
-                    time.sleep(1)
-
-                # If still alive, SIGKILL
-                if process.poll() is None:
-                    logger.error(
-                        "Task %s: Process %d didn't stop with SIGTERM. Sending SIGKILL.",
-                        task_id,
-                        process.pid,
-                    )
+        finally:
+            _active_processes.discard(process.pid)
+            if process.poll() is None:
+                try:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-
-                exit_code = process.returncode if process.poll() is not None else None
-                _finish_task(task, "FAILED", exit_code=exit_code)
-                job.update_status()
-                return
-
-            logger.debug(f"Polling Task ID {task_id}")
-            # Wait before next poll
-            time.sleep(5)
-
-        exit_code = process.returncode
-        if exit_code == 0:
-            logger.info("Task %s: imapsync completed successfully", task_id)
-            finish_status = "SUCCESS"
-        else:
-            logger.error(
-                "Task %s: imapsync failed with exit code %d",
-                task_id,
-                exit_code,
-            )
-            finish_status = "FAILED"
-
-        _finish_task(task, finish_status, exit_code=exit_code)
-        job.update_status()
+                except (ProcessLookupError, OSError):
+                    pass
 
     except Exception as e:
         logger.exception("Task %s failed: %s", task_id, str(e))
