@@ -87,6 +87,13 @@ class MigrationTask(models.Model):
     pid = models.IntegerField(null=True, blank=True)
     worker_hostname = models.CharField(max_length=255, null=True, blank=True)
     logfile = models.CharField(max_length=512, null=True, blank=True)
+    exit_code = models.IntegerField(null=True, blank=True)
+
+    @property
+    def exit_code_label(self) -> str:
+        from .imapsync_exit_codes import describe_exit_code
+
+        return describe_exit_code(self.exit_code)
 
     @property
     def log_path(self):
