@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.conf import settings
 from celery import shared_task
 from celery.signals import worker_shutting_down
-from django.core.cache import cache
+from django.core.cache import caches
 
 try:
     from imapsync_scriptgen.generator import generate, ImapSyncSpec
@@ -69,8 +69,8 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
             _finish_task(task, "FAILED")
             return
 
-        # Fetch credentials from cache (stored during job submission)
-        secrets = cache.get(f"imap_secret:{task.credential_ref}")
+        # Fetch credentials from isolated cache (stored during job submission)
+        secrets = caches["pymap_secrets"].get(f"imap_secret:{task.credential_ref}")
         if not secrets:
             logger.error("Task %s: credentials expired or not found", task_id)
             _finish_task(task, "FAILED")

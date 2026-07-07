@@ -1,7 +1,7 @@
 import uuid
 from collections import deque
 from django.shortcuts import render, get_object_or_404, redirect
-from django.core.cache import cache
+from django.core.cache import caches
 from django.core.paginator import Paginator
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -14,6 +14,8 @@ from django.http import (
     Http404,
 )
 from django.contrib import messages
+
+from django.conf import settings
 
 from .models import MigrationTask, MigrationJob
 from .tasks import run_imap_sync
@@ -195,13 +197,13 @@ def submit_job(request: HttpRequest) -> HttpResponse | HttpResponseRedirect:
                 # Same credentials for source and destination
                 user2, pass2 = user1, pass1
 
-            # Store credentials in Redis cache with TTL (1 hour)
+            # Store credentials in isolated Redis cache with configurable TTL
             # Never pass plaintext passwords in Celery arguments
             credential_ref = str(uuid.uuid4())
-            cache.set(
+            caches["pymap_secrets"].set(
                 f"imap_secret:{credential_ref}",
                 {"pass1": pass1, "pass2": pass2},
-                timeout=3600,
+                timeout=settings.PYMAP_CACHE_TIMEOUT,
             )
 
             task = MigrationTask.objects.create(
