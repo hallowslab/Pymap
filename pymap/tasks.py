@@ -173,7 +173,9 @@ def run_imap_sync(self, task_id: str, host1: str, host2: str, extra_args: str):
                             )
                             os.killpg(os.getpgid(process.pid), signal.SIGKILL)
 
-                        exit_code = process.returncode if process.poll() is not None else None
+                        exit_code = (
+                            process.returncode if process.poll() is not None else None
+                        )
                         _finish_task(task, "FAILED", exit_code=exit_code)
                         job.update_status()
                         return

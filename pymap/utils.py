@@ -5,4 +5,4 @@ def build_logfile(job, task=None, user1=None, user2=None):
     """
     u1 = user1 or (task.user1 if task else None)
     u2 = user2 or (task.user2 if task else None)
-    return f"{job.source_host}_{job.dest_host}_" f"{u1}--{u2}.log"
+    return f"{job.source_host}_{job.dest_host}_{u1}--{u2}.log"

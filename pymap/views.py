@@ -265,16 +265,12 @@ def terminate_all_tasks(request: HttpRequest, job_id) -> HttpResponseRedirect:
         )
         return redirect("pymap:job-list")
 
-    stoppable = job.tasks.filter(
-        status__in=["RUNNING", "PENDING"], terminated=False
-    )
+    stoppable = job.tasks.filter(status__in=["RUNNING", "PENDING"], terminated=False)
     count = stoppable.count()
 
     if count:
         stoppable.update(terminated=True)
-        messages.success(
-            request, f"Termination requested for {count} task(s)."
-        )
+        messages.success(request, f"Termination requested for {count} task(s).")
     else:
         messages.warning(request, "No running or pending tasks to terminate.")
 
